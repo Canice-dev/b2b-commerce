@@ -83,7 +83,9 @@ export const users = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     email: text("email"),
-    displayName: text("display_name"),
+    name: text("display_name"),
+    emailVerified: boolean("email_verified").default(false).notNull(),
+    image: text("image"),
     status: userStatus("status").default("active").notNull(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -92,6 +94,75 @@ export const users = pgTable(
     uniqueIndex("users_email_unique")
       .on(table.email)
       .where(sql`${table.email} is not null`),
+  ],
+);
+
+// Better Auth owns credential and session lifecycle. Business roles remain in
+// user_roles and the profile tables below.
+export const accounts = pgTable(
+  "accounts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", {
+      withTimezone: true,
+    }),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", {
+      withTimezone: true,
+    }),
+    scope: text("scope"),
+    password: text("password"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    index("accounts_user_id_index").on(table.userId),
+    uniqueIndex("accounts_provider_account_unique").on(
+      table.providerId,
+      table.accountId,
+    ),
+  ],
+);
+
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    token: text("token").notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+  },
+  (table) => [
+    uniqueIndex("sessions_token_unique").on(table.token),
+    index("sessions_user_id_index").on(table.userId),
+  ],
+);
+
+export const verifications = pgTable(
+  "verifications",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    index("verifications_identifier_index").on(table.identifier),
   ],
 );
 

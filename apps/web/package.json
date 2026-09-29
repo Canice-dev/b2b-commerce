@@ -9,10 +9,13 @@
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "admin:create": "tsx scripts/create-company-admin.ts"
   },
   "dependencies": {
+    "@better-auth/drizzle-adapter": "^1.7.6",
     "@neondatabase/serverless": "^1.1.0",
+    "better-auth": "^1.7.6",
     "drizzle-orm": "^1.0.0-rc.4",
     "next": "16.3.7",
     "react": "19.2.8",
