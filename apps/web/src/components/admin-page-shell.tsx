@@ -5,6 +5,7 @@ import { SignOutButton } from "@/components/sign-out-button";
 
 type AdminPageShellProps = {
   action: string;
+  actionSlot?: ReactNode;
   children: ReactNode;
   description: string;
   icon: LucideIcon;
@@ -14,6 +15,7 @@ type AdminPageShellProps = {
 
 export function AdminPageShell({
   action,
+  actionSlot,
   children,
   description,
   icon: Icon,
@@ -43,13 +45,15 @@ export function AdminPageShell({
           </div>
           <div className="flex items-center gap-2">
             <AdminUtilityActions />
-            <button
-              className="inline-flex h-9 items-center gap-2 rounded-lg bg-slate-900 px-3 text-xs font-medium text-white transition hover:bg-slate-800"
-              type="button"
-            >
-              <Plus size={15} />
-              {action}
-            </button>
+            {actionSlot ?? (
+              <button
+                className="inline-flex h-9 items-center gap-2 rounded-lg bg-slate-900 px-3 text-xs font-medium text-white transition hover:bg-slate-800"
+                type="button"
+              >
+                <Plus size={15} />
+                {action}
+              </button>
+            )}
           </div>
         </div>
       </div>

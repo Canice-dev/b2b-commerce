@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { MapPinned } from "lucide-react";
 import { AdminPageShell } from "@/components/admin-page-shell";
 import { db } from "@/db";
@@ -9,14 +9,17 @@ import {
   markets,
   states,
 } from "@/db/schema";
+import { AddTerritoryDialog } from "./add-territory-dialog";
+import { MarketAssignmentEditor } from "./market-assignment-editor";
 
 export default async function TerritoriesPage() {
-  const territories = await db
+  const [territories, distributors] = await Promise.all([db
     .select({
       id: markets.id,
       market: markets.name,
       lga: localGovernmentAreas.name,
       state: states.name,
+      distributorId: marketDistributorAssignments.distributorId,
       distributor: distributorProfiles.businessName,
       isAssigned: marketDistributorAssignments.isActive,
     })
@@ -28,7 +31,10 @@ export default async function TerritoriesPage() {
     .innerJoin(states, eq(localGovernmentAreas.stateId, states.id))
     .leftJoin(
       marketDistributorAssignments,
-      eq(marketDistributorAssignments.marketId, markets.id),
+      and(
+        eq(marketDistributorAssignments.marketId, markets.id),
+        eq(marketDistributorAssignments.isActive, true),
+      ),
     )
     .leftJoin(
       distributorProfiles,
@@ -38,13 +44,18 @@ export default async function TerritoriesPage() {
       asc(states.name),
       asc(localGovernmentAreas.name),
       asc(markets.name),
-    );
+    ), db
+    .select({ id: distributorProfiles.id, businessName: distributorProfiles.businessName })
+    .from(distributorProfiles)
+    .where(eq(distributorProfiles.isActive, true))
+    .orderBy(asc(distributorProfiles.businessName))]);
   const stateCount = new Set(territories.map((territory) => territory.state))
     .size;
 
   return (
     <AdminPageShell
       action="Add territory"
+      actionSlot={<AddTerritoryDialog distributors={distributors} />}
       description="Define the markets and service areas your network supports."
       icon={MapPinned}
       label="Territories"
@@ -84,7 +95,12 @@ export default async function TerritoriesPage() {
                       {territory.market}
                     </td>
                     <td className="border-t border-slate-100 px-4 py-3 text-slate-700">
-                      {territory.distributor ?? "Not assigned"}
+                      <MarketAssignmentEditor
+                        distributorId={territory.distributorId}
+                        distributorName={territory.distributor}
+                        distributors={distributors}
+                        marketId={territory.id}
+                      />
                     </td>
                     <td className="border-t border-slate-100 px-4 py-3">
                       <span
