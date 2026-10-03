@@ -81,7 +81,7 @@ export default async function DistributorDetailPage(
         isActive: products.isActive,
       })
       .from(products)
-      .where(eq(products.distributorId, distributor.id))
+      .where(eq(products.isActive, true))
       .orderBy(asc(products.name)),
   ]);
   const activeProducts = catalogue.filter((product) => product.isActive);
@@ -151,13 +151,13 @@ export default async function DistributorDetailPage(
         <section className="rounded-xl border border-slate-200 bg-white p-4">
           <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
             <Package size={16} className="text-slate-500" />
-            Catalogue & stock
+            Company catalogue
           </div>
           <p className="mt-4 text-2xl font-semibold tabular-nums text-slate-900">
-            {activeProducts.length} products
+            {activeProducts.length} products to order
           </p>
           <p className="mt-1 text-sm text-slate-500">
-            {stockUnits.toLocaleString("en-NG")} available units
+            {stockUnits.toLocaleString("en-NG")} company units available
           </p>
         </section>
       </div>
@@ -198,13 +198,13 @@ export default async function DistributorDetailPage(
         <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
           <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
             <h2 className="text-sm font-medium text-slate-700">
-              Catalogue & stock
+              Company catalogue
             </h2>
             <Link
               className="text-xs font-medium text-slate-600 hover:text-slate-950"
               href="/admin/catalogue"
             >
-              Manage catalogue
+              Manage company catalogue
             </Link>
           </div>
           <div className="overflow-x-auto">
@@ -251,7 +251,7 @@ export default async function DistributorDetailPage(
                       className="border-t border-slate-100 px-4 py-10 text-center text-sm text-slate-500"
                       colSpan={4}
                     >
-                      No products have been added yet.
+                      No company products are currently available to order.
                     </td>
                   </tr>
                 )}

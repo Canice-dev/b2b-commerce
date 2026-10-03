@@ -377,9 +377,6 @@ export const products = pgTable(
   "products",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    distributorId: uuid("distributor_id")
-      .notNull()
-      .references(() => distributorProfiles.id, { onDelete: "restrict" }),
     name: text("name").notNull(),
     variant: text("variant"),
     unit: text("unit").notNull(),
@@ -396,10 +393,7 @@ export const products = pgTable(
       "products_quantity_nonnegative",
       sql`${table.availableQuantity} >= 0`,
     ),
-    index("products_distributor_active_index").on(
-      table.distributorId,
-      table.isActive,
-    ),
+    index("products_active_index").on(table.isActive),
   ],
 );
 

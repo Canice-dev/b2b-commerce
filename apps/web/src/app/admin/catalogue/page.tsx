@@ -1,8 +1,13 @@
-import { asc, eq } from "drizzle-orm";
+import { asc } from "drizzle-orm";
 import { Package } from "lucide-react";
 import { AdminPageShell } from "@/components/admin-page-shell";
 import { db } from "@/db";
-import { distributorProfiles, products } from "@/db/schema";
+import { products } from "@/db/schema";
+import {
+  AddProductDialog,
+  AdjustStockDialog,
+  EditProductDialog,
+} from "./product-dialogs";
 
 const formatNaira = (kobo: number) =>
   new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(
@@ -19,18 +24,19 @@ export default async function CataloguePage() {
       priceKobo: products.unitPriceKobo,
       quantity: products.availableQuantity,
       isActive: products.isActive,
-      distributor: distributorProfiles.businessName,
     })
     .from(products)
-    .innerJoin(
-      distributorProfiles,
-      eq(products.distributorId, distributorProfiles.id),
-    )
     .orderBy(asc(products.name));
+  const activeProducts = catalogue.filter((product) => product.isActive);
+  const availableStock = activeProducts.reduce(
+    (total, product) => total + product.quantity,
+    0,
+  );
   return (
     <AdminPageShell
       action="Add product"
-      description="Maintain your product catalogue, pricing, and available stock."
+      actionSlot={<AddProductDialog />}
+      description="View company products and add or adjust the stock available for ordering."
       icon={Package}
       label="Catalogue & stock"
       title="Catalogue and stock"
@@ -38,21 +44,26 @@ export default async function CataloguePage() {
       <section className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
           <p className="text-sm font-medium text-slate-700">
-            Available products
+            Company product inventory
           </p>
-          <span className="text-xs text-slate-500">
-            {catalogue.filter((product) => product.isActive).length} active
-          </span>
+          <div className="flex items-center gap-3 text-xs text-slate-500">
+            <span>{activeProducts.length} active products</span>
+            <span>
+              {availableStock.toLocaleString("en-NG")} units available
+            </span>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-180 text-left text-sm">
             <thead className="bg-slate-50 text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-500">
               <tr>
                 <th className="px-4 py-3">Product</th>
-                <th className="px-4 py-3">Distributor</th>
                 <th className="px-4 py-3">Unit price</th>
                 <th className="px-4 py-3">Stock</th>
                 <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -68,13 +79,18 @@ export default async function CataloguePage() {
                       </p>
                     </td>
                     <td className="border-t border-slate-100 px-4 py-3 text-slate-700">
-                      {product.distributor}
-                    </td>
-                    <td className="border-t border-slate-100 px-4 py-3 text-slate-700">
                       {formatNaira(product.priceKobo)}
                     </td>
                     <td className="border-t border-slate-100 px-4 py-3 text-slate-700">
-                      {product.quantity} {product.unit}
+                      <p>
+                        {product.quantity.toLocaleString("en-NG")}{" "}
+                        {product.unit}
+                      </p>
+                      <p
+                        className={`mt-0.5 text-xs ${product.quantity ? "text-emerald-700" : "text-rose-700"}`}
+                      >
+                        {product.quantity ? "In stock" : "Out of stock"}
+                      </p>
                     </td>
                     <td className="border-t border-slate-100 px-4 py-3">
                       <span
@@ -82,6 +98,12 @@ export default async function CataloguePage() {
                       >
                         {product.isActive ? "Active" : "Inactive"}
                       </span>
+                    </td>
+                    <td className="border-t border-slate-100 px-4 py-3">
+                      <div className="flex justify-end gap-1">
+                        <AdjustStockDialog product={product} />
+                        <EditProductDialog product={product} />
+                      </div>
                     </td>
                   </tr>
                 ))
