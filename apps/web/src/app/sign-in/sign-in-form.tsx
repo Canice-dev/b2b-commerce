@@ -5,7 +5,11 @@ import { useRouter } from "next/navigation";
 
 import { authClient } from "@/lib/auth-client";
 
-export function SignInForm() {
+export function SignInForm({
+  callbackURL = "/admin",
+}: {
+  callbackURL?: string;
+}) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -16,7 +20,7 @@ export function SignInForm() {
     const { error: signInError } = await authClient.signIn.email({
       email: String(formData.get("email") ?? ""),
       password: String(formData.get("password") ?? ""),
-      callbackURL: "/admin",
+      callbackURL,
     });
     setIsSubmitting(false);
 
@@ -25,7 +29,7 @@ export function SignInForm() {
       return;
     }
 
-    router.replace("/admin");
+    router.replace(callbackURL);
     router.refresh();
   }
 

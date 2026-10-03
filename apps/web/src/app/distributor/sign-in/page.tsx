@@ -1,15 +1,12 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-
 import { auth } from "@/lib/auth";
-import { getActiveDistributor, isCompanyAdmin } from "@/lib/authorization";
+import { getActiveDistributor } from "@/lib/authorization";
+import { SignInForm } from "@/app/sign-in/sign-in-form";
 
-import { SignInForm } from "./sign-in-form";
-
-export default async function SignInPage() {
+export default async function DistributorSignInPage() {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (session && (await isCompanyAdmin(session.user.id))) redirect("/admin");
   if (session && (await getActiveDistributor(session.user.id))) {
     redirect("/distributor");
   }
@@ -22,18 +19,19 @@ export default async function SignInPage() {
             Distributor Direct
           </p>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-950">
-            Company admin sign in
+            Distributor sign in
           </h1>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Use the account provisioned for your company operations team.
+            Sign in with the email and temporary password supplied when your
+            distributor account was created.
           </p>
         </div>
-        <SignInForm />
+        <SignInForm callbackURL="/distributor" />
         <p className="mt-6 text-center text-xs text-slate-500">
-          Distributor account?{" "}
+          Company administrator?{" "}
           <Link
             className="font-medium text-slate-700 hover:text-slate-950 hover:underline"
-            href="/distributor/sign-in"
+            href="/sign-in"
           >
             Sign in here
           </Link>
