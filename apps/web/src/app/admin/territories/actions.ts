@@ -66,64 +66,64 @@ export async function createTerritory(formData: FormData) {
     throw new Error("Choose a valid distributor.");
   }
 
-  await db.transaction(async (tx) => {
-    await tx
-      .insert(states)
-      .values({ name: stateName, code: stateCode })
-      .onConflictDoNothing();
-    const [state] = await tx
-      .select({ id: states.id })
-      .from(states)
-      .where(eq(states.code, stateCode))
-      .limit(1);
-    if (!state) throw new Error("Could not create the state.");
+  await db
+    .insert(states)
+    .values({ name: stateName, code: stateCode })
+    .onConflictDoNothing();
+  const [state] = await db
+    .select({ id: states.id })
+    .from(states)
+    .where(eq(states.code, stateCode))
+    .limit(1);
+  if (!state) throw new Error("Could not create the state.");
 
-    await tx
-      .insert(localGovernmentAreas)
-      .values({ stateId: state.id, name: lgaName })
-      .onConflictDoNothing();
-    const [lga] = await tx
-      .select({ id: localGovernmentAreas.id })
-      .from(localGovernmentAreas)
+  await db
+    .insert(localGovernmentAreas)
+    .values({ stateId: state.id, name: lgaName })
+    .onConflictDoNothing();
+  const [lga] = await db
+    .select({ id: localGovernmentAreas.id })
+    .from(localGovernmentAreas)
+    .where(
+      and(
+        eq(localGovernmentAreas.stateId, state.id),
+        eq(localGovernmentAreas.name, lgaName),
+      ),
+    )
+    .limit(1);
+  if (!lga) throw new Error("Could not create the LGA.");
+
+  await db
+    .insert(markets)
+    .values({ localGovernmentAreaId: lga.id, name: marketName })
+    .onConflictDoNothing();
+  const [market] = await db
+    .select({ id: markets.id })
+    .from(markets)
+    .where(
+      and(
+        eq(markets.localGovernmentAreaId, lga.id),
+        eq(markets.name, marketName),
+      ),
+    )
+    .limit(1);
+  if (!market) throw new Error("Could not create the market.");
+
+  if (typeof distributorId === "string" && distributorId) {
+    const [distributor] = await db
+      .select({ id: distributorProfiles.id })
+      .from(distributorProfiles)
       .where(
         and(
-          eq(localGovernmentAreas.stateId, state.id),
-          eq(localGovernmentAreas.name, lgaName),
+          eq(distributorProfiles.id, distributorId),
+          eq(distributorProfiles.isActive, true),
         ),
       )
       .limit(1);
-    if (!lga) throw new Error("Could not create the LGA.");
+    if (!distributor) throw new Error("That distributor is unavailable.");
 
-    await tx
-      .insert(markets)
-      .values({ localGovernmentAreaId: lga.id, name: marketName })
-      .onConflictDoNothing();
-    const [market] = await tx
-      .select({ id: markets.id })
-      .from(markets)
-      .where(
-        and(
-          eq(markets.localGovernmentAreaId, lga.id),
-          eq(markets.name, marketName),
-        ),
-      )
-      .limit(1);
-    if (!market) throw new Error("Could not create the market.");
-
-    if (typeof distributorId === "string" && distributorId) {
-      const [distributor] = await tx
-        .select({ id: distributorProfiles.id })
-        .from(distributorProfiles)
-        .where(
-          and(
-            eq(distributorProfiles.id, distributorId),
-            eq(distributorProfiles.isActive, true),
-          ),
-        )
-        .limit(1);
-      if (!distributor) throw new Error("That distributor is unavailable.");
-
-      await tx
+    await db.batch([
+      db
         .update(marketDistributorAssignments)
         .set({ isActive: false, endsAt: new Date() })
         .where(
@@ -131,25 +131,25 @@ export async function createTerritory(formData: FormData) {
             eq(marketDistributorAssignments.marketId, market.id),
             eq(marketDistributorAssignments.isActive, true),
           ),
-        );
-      await tx
+        ),
+      db
         .insert(marketDistributorAssignments)
-        .values({ marketId: market.id, distributorId });
-    }
+        .values({ marketId: market.id, distributorId }),
+    ]);
+  }
 
-    await tx.insert(auditEvents).values({
-      actorUserId,
-      action: "territory.created",
-      resourceType: "market",
-      resourceId: market.id,
-      afterData: {
-        stateName,
-        stateCode,
-        lgaName,
-        marketName,
-        distributorId: distributorId || null,
-      },
-    });
+  await db.insert(auditEvents).values({
+    actorUserId,
+    action: "territory.created",
+    resourceType: "market",
+    resourceId: market.id,
+    afterData: {
+      stateName,
+      stateCode,
+      lgaName,
+      marketName,
+      distributorId: distributorId || null,
+    },
   });
 
   revalidatePath("/admin/territories");
@@ -166,50 +166,55 @@ export async function updateMarketAssignment(formData: FormData) {
   if (distributorId && !uuidPattern.test(distributorId))
     throw new Error("Invalid distributor.");
 
-  await db.transaction(async (tx) => {
-    const [market] = await tx
-      .select({ id: markets.id })
-      .from(markets)
-      .where(eq(markets.id, marketId))
-      .limit(1);
-    if (!market) throw new Error("Market not found.");
+  const [market] = await db
+    .select({ id: markets.id })
+    .from(markets)
+    .where(eq(markets.id, marketId))
+    .limit(1);
+  if (!market) throw new Error("Market not found.");
 
-    if (distributorId) {
-      const [distributor] = await tx
-        .select({ id: distributorProfiles.id })
-        .from(distributorProfiles)
-        .where(
-          and(
-            eq(distributorProfiles.id, distributorId),
-            eq(distributorProfiles.isActive, true),
-          ),
-        )
-        .limit(1);
-      if (!distributor) throw new Error("That distributor is unavailable.");
-    }
-
-    await tx
-      .update(marketDistributorAssignments)
-      .set({ isActive: false, endsAt: new Date() })
+  if (distributorId) {
+    const [distributor] = await db
+      .select({ id: distributorProfiles.id })
+      .from(distributorProfiles)
       .where(
         and(
-          eq(marketDistributorAssignments.marketId, marketId),
-          eq(marketDistributorAssignments.isActive, true),
+          eq(distributorProfiles.id, distributorId),
+          eq(distributorProfiles.isActive, true),
         ),
-      );
-    if (distributorId) {
-      await tx
-        .insert(marketDistributorAssignments)
-        .values({ marketId, distributorId });
-    }
-    await tx.insert(auditEvents).values({
-      actorUserId,
-      action: "territory.assignment_updated",
-      resourceType: "market",
-      resourceId: marketId,
-      afterData: { distributorId: distributorId || null },
-    });
+      )
+      .limit(1);
+    if (!distributor) throw new Error("That distributor is unavailable.");
+  }
+
+  const deactivateCurrentAssignment = db
+    .update(marketDistributorAssignments)
+    .set({ isActive: false, endsAt: new Date() })
+    .where(
+      and(
+        eq(marketDistributorAssignments.marketId, marketId),
+        eq(marketDistributorAssignments.isActive, true),
+      ),
+    );
+  const auditAssignmentChange = db.insert(auditEvents).values({
+    actorUserId,
+    action: "territory.assignment_updated",
+    resourceType: "market",
+    resourceId: marketId,
+    afterData: { distributorId: distributorId || null },
   });
+
+  if (distributorId) {
+    await db.batch([
+      deactivateCurrentAssignment,
+      db
+        .insert(marketDistributorAssignments)
+        .values({ marketId, distributorId }),
+      auditAssignmentChange,
+    ]);
+  } else {
+    await db.batch([deactivateCurrentAssignment, auditAssignmentChange]);
+  }
 
   revalidatePath("/admin/territories");
   revalidatePath("/admin");

@@ -11,6 +11,7 @@ import {
   states,
   users,
 } from "@/db/schema";
+import { AddDistributorDialog } from "./add-distributor-dialog";
 
 const formatNaira = (kobo: number) =>
   new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(
@@ -51,6 +52,7 @@ export default async function DistributorsPage() {
   return (
     <AdminPageShell
       action="Add distributor"
+      actionSlot={<AddDistributorDialog />}
       description="Manage the partners responsible for stock and fulfilment."
       icon={Truck}
       label="Distributors"
