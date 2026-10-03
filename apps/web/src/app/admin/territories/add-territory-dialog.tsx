@@ -42,13 +42,15 @@ export function AddTerritoryDialog({
         </DialogHeader>
         <form action={createTerritory} className="grid gap-4 sm:grid-cols-2">
           <label className="grid min-w-0 gap-1.5 text-xs font-medium text-slate-700">
-            State
+            State name
             <input
               className="h-9 w-full min-w-0 rounded-lg border border-slate-200 px-3 text-sm"
               maxLength={120}
               name="stateName"
+              placeholder="e.g. Lagos"
               required
             />
+            <span className="font-normal text-slate-400">Full state name</span>
           </label>
           <label className="grid min-w-0 gap-1.5 text-xs font-medium text-slate-700">
             State code
@@ -57,8 +59,12 @@ export function AddTerritoryDialog({
               maxLength={8}
               name="stateCode"
               pattern="[A-Za-z]{2,8}"
+              placeholder="e.g. LA"
               required
             />
+            <span className="font-normal text-slate-400">
+              2–8 letters; reuse this code for the same state
+            </span>
           </label>
           <label className="grid min-w-0 gap-1.5 text-xs font-medium text-slate-700">
             LGA / city
@@ -66,8 +72,10 @@ export function AddTerritoryDialog({
               className="h-9 w-full min-w-0 rounded-lg border border-slate-200 px-3 text-sm"
               maxLength={120}
               name="lgaName"
+              placeholder="e.g. Ikeja"
               required
             />
+            <span className="font-normal text-slate-400">Local Government Area or city</span>
           </label>
           <label className="grid min-w-0 gap-1.5 text-xs font-medium text-slate-700">
             Market
@@ -75,8 +83,10 @@ export function AddTerritoryDialog({
               className="h-9 w-full min-w-0 rounded-lg border border-slate-200 px-3 text-sm"
               maxLength={120}
               name="marketName"
+              placeholder="e.g. Computer Village"
               required
             />
+            <span className="font-normal text-slate-400">The market customers select</span>
           </label>
           <label className="grid min-w-0 gap-1.5 text-xs font-medium text-slate-700 sm:col-span-2">
             Distributor
@@ -92,6 +102,7 @@ export function AddTerritoryDialog({
                 </option>
               ))}
             </select>
+            <span className="font-normal text-slate-400">Optional — you can assign one later</span>
           </label>
           <DialogFooter className="sm:col-span-2">
             <DialogClose
