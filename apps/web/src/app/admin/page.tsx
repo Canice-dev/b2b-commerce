@@ -14,56 +14,18 @@ import {
   Truck,
 } from "lucide-react";
 import type { ReactNode } from "react";
+import { count, desc, eq, gte } from "drizzle-orm";
 import { AdminUtilityActions } from "@/components/admin-utility-actions";
 import { SignOutButton } from "@/components/sign-out-button";
+import { db } from "@/db";
+import { distributorProfiles, markets, orders, products } from "@/db/schema";
 
-const metrics = [
-  {
-    icon: ShoppingCart,
-    label: "Orders this week",
-    value: "0",
-    change: "Ready for pilot orders",
-    tone: "text-emerald-600",
-  },
-  {
-    icon: Store,
-    label: "Active distributors",
-    value: "0",
-    change: "Set up your first distributor",
-    tone: "text-slate-500",
-  },
-  {
-    icon: Package,
-    label: "Products in catalogue",
-    value: "0",
-    change: "No stock records yet",
-    tone: "text-slate-500",
-  },
-];
-
-const activities = [
-  {
-    icon: MapPinned,
-    title: "Set up your first territory",
-    text: "Add a state, LGA, and market to begin routing customers.",
-    time: "Next step",
-    color: "text-indigo-600 bg-indigo-50 border-indigo-100",
-  },
-  {
-    icon: Truck,
-    title: "Create a distributor",
-    text: "Add the pilot distributor and its owner contact details.",
-    time: "Then",
-    color: "text-emerald-600 bg-emerald-50 border-emerald-100",
-  },
-  {
-    icon: Package,
-    title: "Load opening stock",
-    text: "Create products, prices, and starting quantities.",
-    time: "After setup",
-    color: "text-amber-600 bg-amber-50 border-amber-100",
-  },
-];
+const formatNaira = (kobo: number) =>
+  new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    maximumFractionDigits: 2,
+  }).format(kobo / 100);
 
 function Panel({
   children,
@@ -90,7 +52,116 @@ function Panel({
   );
 }
 
-export default function AdminHomePage() {
+export default async function AdminHomePage() {
+  const weekStart = new Date();
+  weekStart.setHours(0, 0, 0, 0);
+  weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
+
+  const [
+    orderCount,
+    distributorCount,
+    productCount,
+    marketCount,
+    recentOrders,
+  ] = await Promise.all([
+    db
+      .select({ value: count() })
+      .from(orders)
+      .where(gte(orders.createdAt, weekStart)),
+    db
+      .select({ value: count() })
+      .from(distributorProfiles)
+      .where(eq(distributorProfiles.isActive, true)),
+    db
+      .select({ value: count() })
+      .from(products)
+      .where(eq(products.isActive, true)),
+    db.select({ value: count() }).from(markets),
+    db
+      .select({
+        id: orders.id,
+        customer: orders.customerBusinessNameSnapshot,
+        distributorId: orders.distributorId,
+        paymentStatus: orders.paymentStatus,
+        fulfilmentStatus: orders.fulfilmentStatus,
+        totalKobo: orders.orderedTotalKobo,
+      })
+      .from(orders)
+      .orderBy(desc(orders.createdAt))
+      .limit(5),
+  ]);
+
+  const ordersThisWeek = orderCount[0]?.value ?? 0;
+  const activeDistributors = distributorCount[0]?.value ?? 0;
+  const activeProducts = productCount[0]?.value ?? 0;
+  const activeMarkets = marketCount[0]?.value ?? 0;
+  const setupComplete = [
+    activeMarkets > 0,
+    activeDistributors > 0,
+    activeProducts > 0,
+  ].filter(Boolean).length;
+  const metrics = [
+    {
+      icon: ShoppingCart,
+      label: "Orders this week",
+      value: String(ordersThisWeek),
+      change: ordersThisWeek
+        ? "Orders received this week"
+        : "Ready for pilot orders",
+      tone: "text-emerald-600",
+    },
+    {
+      icon: Store,
+      label: "Active distributors",
+      value: String(activeDistributors),
+      change: activeDistributors
+        ? "Distributor network is active"
+        : "Set up your first distributor",
+      tone: activeDistributors ? "text-emerald-600" : "text-slate-500",
+    },
+    {
+      icon: Package,
+      label: "Products in catalogue",
+      value: String(activeProducts),
+      change: activeProducts
+        ? "Products available for ordering"
+        : "No stock records yet",
+      tone: activeProducts ? "text-emerald-600" : "text-slate-500",
+    },
+  ];
+  const activities = [
+    {
+      icon: MapPinned,
+      title: activeMarkets
+        ? "Territories are ready"
+        : "Set up your first territory",
+      text: activeMarkets
+        ? `${activeMarkets} markets are available for routing.`
+        : "Add a state, LGA, and market to begin routing customers.",
+      time: activeMarkets ? "Complete" : "Next step",
+      color: "text-indigo-600 bg-indigo-50 border-indigo-100",
+    },
+    {
+      icon: Truck,
+      title: activeDistributors
+        ? "Distributor network is ready"
+        : "Create a distributor",
+      text: activeDistributors
+        ? `${activeDistributors} active distributors can receive orders.`
+        : "Add the pilot distributor and its owner contact details.",
+      time: activeDistributors ? "Complete" : "Then",
+      color: "text-emerald-600 bg-emerald-50 border-emerald-100",
+    },
+    {
+      icon: Package,
+      title: activeProducts ? "Catalogue is ready" : "Load opening stock",
+      text: activeProducts
+        ? `${activeProducts} active products are ready for allocation.`
+        : "Create products, prices, and starting quantities.",
+      time: activeProducts ? "Complete" : "After setup",
+      color: "text-amber-600 bg-amber-50 border-amber-100",
+    },
+  ];
   return (
     <main className="mx-auto max-w-[1540px] px-4 pb-6 pt-16 sm:px-6 lg:px-8 lg:py-6">
       <div className="relative flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
@@ -162,9 +233,13 @@ export default function AdminHomePage() {
         >
           <div className="p-4">
             <div className="flex items-baseline gap-3">
-              <p className="text-3xl font-semibold tracking-tight">0</p>
+              <p className="text-3xl font-semibold tracking-tight">
+                {ordersThisWeek}
+              </p>
               <p className="text-xs text-slate-500">
-                Orders will appear here after launch
+                {ordersThisWeek
+                  ? "Orders received since Monday"
+                  : "Orders will appear here after launch"}
               </p>
             </div>
             <div className="mt-6 flex h-44 items-end gap-2 border-b border-slate-100 px-1 pb-0">
@@ -198,7 +273,7 @@ export default function AdminHomePage() {
           title="Setup checklist"
           action={
             <span className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">
-              0 / 3 complete
+              {setupComplete} / 3 complete
             </span>
           }
         >
@@ -256,11 +331,14 @@ export default function AdminHomePage() {
               Search activities
             </div>
             <p className="mt-4 text-sm font-medium text-slate-700">
-              No activity yet
+              {activeMarkets || activeDistributors
+                ? "Demo network is active"
+                : "No activity yet"}
             </p>
             <p className="mt-1 text-xs text-slate-500">
-              Territory, distributor, stock, and order events will be recorded
-              here.
+              {activeMarkets || activeDistributors
+                ? `${activeMarkets} markets and ${activeDistributors} distributors are available for setup.`
+                : "Territory, distributor, stock, and order events will be recorded here."}
             </p>
           </div>
         </Panel>
@@ -269,19 +347,29 @@ export default function AdminHomePage() {
             <div>
               <div className="mb-2 flex justify-between text-xs">
                 <span className="text-slate-600">Territory coverage</span>
-                <span className="font-medium text-slate-700">0 markets</span>
+                <span className="font-medium text-slate-700">
+                  {activeMarkets} markets
+                </span>
               </div>
               <div className="h-2 rounded-full bg-slate-100">
-                <div className="h-2 w-0 rounded-full bg-emerald-500" />
+                <div
+                  className="h-2 rounded-full bg-emerald-500"
+                  style={{ width: activeMarkets ? "100%" : "0%" }}
+                />
               </div>
             </div>
             <div>
               <div className="mb-2 flex justify-between text-xs">
                 <span className="text-slate-600">Catalogue readiness</span>
-                <span className="font-medium text-slate-700">0 products</span>
+                <span className="font-medium text-slate-700">
+                  {activeProducts} products
+                </span>
               </div>
               <div className="h-2 rounded-full bg-slate-100">
-                <div className="h-2 w-0 rounded-full bg-indigo-500" />
+                <div
+                  className="h-2 rounded-full bg-indigo-500"
+                  style={{ width: activeProducts ? "100%" : "0%" }}
+                />
               </div>
             </div>
             <button className="inline-flex items-center gap-1 text-xs font-medium text-slate-700 hover:text-slate-950">
@@ -321,15 +409,40 @@ export default function AdminHomePage() {
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td
-                  className="border-t border-slate-100 px-4 py-9 text-center text-sm text-slate-500"
-                  colSpan={6}
-                >
-                  No orders yet. Customer orders will appear here once the pilot
-                  is live.
-                </td>
-              </tr>
+              {recentOrders.length ? (
+                recentOrders.map((order) => (
+                  <tr key={order.id}>
+                    <td className="border-t border-slate-100 px-4 py-3 font-mono text-xs text-slate-600">
+                      {order.id.slice(0, 8)}
+                    </td>
+                    <td className="border-t border-slate-100 px-4 py-3 text-slate-700">
+                      {order.customer}
+                    </td>
+                    <td className="border-t border-slate-100 px-4 py-3 text-slate-700">
+                      {order.distributorId.slice(0, 8)}
+                    </td>
+                    <td className="border-t border-slate-100 px-4 py-3 capitalize text-slate-600">
+                      {order.paymentStatus.replaceAll("_", " ")}
+                    </td>
+                    <td className="border-t border-slate-100 px-4 py-3 capitalize text-slate-600">
+                      {order.fulfilmentStatus.replaceAll("_", " ")}
+                    </td>
+                    <td className="border-t border-slate-100 px-4 py-3 text-right font-medium text-slate-800">
+                      {formatNaira(order.totalKobo)}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    className="border-t border-slate-100 px-4 py-9 text-center text-sm text-slate-500"
+                    colSpan={6}
+                  >
+                    No orders yet. Customer orders will appear here once the
+                    pilot is live.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
