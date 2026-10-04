@@ -32,7 +32,6 @@ const primaryNavigation: ReadonlyArray<{
   { href: "/admin/territories", icon: MapPinned, label: "Territories" },
   { href: "/admin/distributors", icon: Truck, label: "Distributors" },
   { href: "/admin/catalogue", icon: Package, label: "Catalogue & stock" },
-  { href: "/admin/orders", icon: ShoppingCart, label: "Orders" },
   { href: "/admin/restock", icon: ClipboardCheck, label: "Restock approvals" },
 ];
 

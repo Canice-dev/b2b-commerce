@@ -4,28 +4,25 @@ import {
   CalendarDays,
   ChevronDown,
   CircleAlert,
+  ClipboardCheck,
   Clock3,
   MapPinned,
   MoreHorizontal,
   Package,
   Search,
-  ShoppingCart,
-  Store,
   Truck,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { count, desc, eq, gte } from "drizzle-orm";
+import { count, eq, gte } from "drizzle-orm";
 import { AdminUtilityActions } from "@/components/admin-utility-actions";
 import { SignOutButton } from "@/components/sign-out-button";
 import { db } from "@/db";
-import { distributorProfiles, markets, orders, products } from "@/db/schema";
-
-const formatNaira = (kobo: number) =>
-  new Intl.NumberFormat("en-NG", {
-    style: "currency",
-    currency: "NGN",
-    maximumFractionDigits: 2,
-  }).format(kobo / 100);
+import {
+  distributorProfiles,
+  markets,
+  products,
+  restockOrders,
+} from "@/db/schema";
 
 function Panel({
   children,
@@ -58,16 +55,20 @@ export default async function AdminHomePage() {
   weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
 
   const [
-    orderCount,
+    restockCount,
+    pendingRestockCount,
     distributorCount,
     productCount,
     marketCount,
-    recentOrders,
   ] = await Promise.all([
     db
       .select({ value: count() })
-      .from(orders)
-      .where(gte(orders.createdAt, weekStart)),
+      .from(restockOrders)
+      .where(gte(restockOrders.createdAt, weekStart)),
+    db
+      .select({ value: count() })
+      .from(restockOrders)
+      .where(eq(restockOrders.status, "submitted")),
     db
       .select({ value: count() })
       .from(distributorProfiles)
@@ -77,21 +78,10 @@ export default async function AdminHomePage() {
       .from(products)
       .where(eq(products.isActive, true)),
     db.select({ value: count() }).from(markets),
-    db
-      .select({
-        id: orders.id,
-        customer: orders.customerBusinessNameSnapshot,
-        distributorId: orders.distributorId,
-        paymentStatus: orders.paymentStatus,
-        fulfilmentStatus: orders.fulfilmentStatus,
-        totalKobo: orders.orderedTotalKobo,
-      })
-      .from(orders)
-      .orderBy(desc(orders.createdAt))
-      .limit(5),
   ]);
 
-  const ordersThisWeek = orderCount[0]?.value ?? 0;
+  const restockRequestsThisWeek = restockCount[0]?.value ?? 0;
+  const pendingRestockRequests = pendingRestockCount[0]?.value ?? 0;
   const activeDistributors = distributorCount[0]?.value ?? 0;
   const activeProducts = productCount[0]?.value ?? 0;
   const activeMarkets = marketCount[0]?.value ?? 0;
@@ -102,22 +92,22 @@ export default async function AdminHomePage() {
   ].filter(Boolean).length;
   const metrics = [
     {
-      icon: ShoppingCart,
-      label: "Orders this week",
-      value: String(ordersThisWeek),
-      change: ordersThisWeek
-        ? "Orders received this week"
-        : "Ready for pilot orders",
-      tone: "text-emerald-600",
+      icon: ClipboardCheck,
+      label: "Restock requests this week",
+      value: String(restockRequestsThisWeek),
+      change: restockRequestsThisWeek
+        ? "Distributor requests received"
+        : "No requests this week",
+      tone: "text-indigo-600",
     },
     {
-      icon: Store,
-      label: "Active distributors",
-      value: String(activeDistributors),
-      change: activeDistributors
-        ? "Distributor network is active"
-        : "Set up your first distributor",
-      tone: activeDistributors ? "text-emerald-600" : "text-slate-500",
+      icon: CircleAlert,
+      label: "Awaiting approval",
+      value: String(pendingRestockRequests),
+      change: pendingRestockRequests
+        ? "Restock requests need review"
+        : "Approval queue is clear",
+      tone: pendingRestockRequests ? "text-amber-600" : "text-emerald-600",
     },
     {
       icon: Package,
@@ -147,7 +137,7 @@ export default async function AdminHomePage() {
         ? "Distributor network is ready"
         : "Create a distributor",
       text: activeDistributors
-        ? `${activeDistributors} active distributors can receive orders.`
+        ? `${activeDistributors} active distributors can submit restock requests.`
         : "Add the pilot distributor and its owner contact details.",
       time: activeDistributors ? "Complete" : "Then",
       color: "text-emerald-600 bg-emerald-50 border-emerald-100",
@@ -221,8 +211,8 @@ export default async function AdminHomePage() {
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(330px,0.75fr)]">
         <Panel
-          icon={ShoppingCart}
-          title="Order volume trend"
+          icon={ClipboardCheck}
+          title="Restock request trend"
           action={
             <button className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-600">
               <CalendarDays size={14} />
@@ -234,12 +224,12 @@ export default async function AdminHomePage() {
           <div className="p-4">
             <div className="flex items-baseline gap-3">
               <p className="text-3xl font-semibold tracking-tight">
-                {ordersThisWeek}
+                {restockRequestsThisWeek}
               </p>
               <p className="text-xs text-slate-500">
-                {ordersThisWeek
-                  ? "Orders received since Monday"
-                  : "Orders will appear here after launch"}
+                {restockRequestsThisWeek
+                  ? "Distributor requests received since Monday"
+                  : "Restock requests will appear here after launch"}
               </p>
             </div>
             <div className="mt-6 flex h-44 items-end gap-2 border-b border-slate-100 px-1 pb-0">
@@ -380,72 +370,22 @@ export default async function AdminHomePage() {
         </Panel>
       </div>
 
-      <section className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <div className="panel-heading flex flex-col gap-3 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
-            <ShoppingCart size={16} className="text-slate-500" />
-            Recent orders
-          </div>
-          <div className="flex gap-2">
-            <div className="flex h-8 w-40 items-center gap-2 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-400">
-              <Search size={14} />
-              Order ID
-            </div>
-            <button className="h-8 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-600">
-              Filter
-            </button>
-          </div>
+      <section className="mt-4 rounded-xl border border-slate-200 bg-white p-5">
+        <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+          <ClipboardCheck size={16} className="text-slate-500" />
+          Restock operations
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-180 text-left text-sm">
-            <thead className="bg-slate-50 text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-500">
-              <tr>
-                <th className="px-4 py-3">Order</th>
-                <th className="px-4 py-3">Customer</th>
-                <th className="px-4 py-3">Distributor</th>
-                <th className="px-4 py-3">Payment</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentOrders.length ? (
-                recentOrders.map((order) => (
-                  <tr key={order.id}>
-                    <td className="border-t border-slate-100 px-4 py-3 font-mono text-xs text-slate-600">
-                      {order.id.slice(0, 8)}
-                    </td>
-                    <td className="border-t border-slate-100 px-4 py-3 text-slate-700">
-                      {order.customer}
-                    </td>
-                    <td className="border-t border-slate-100 px-4 py-3 text-slate-700">
-                      {order.distributorId.slice(0, 8)}
-                    </td>
-                    <td className="border-t border-slate-100 px-4 py-3 capitalize text-slate-600">
-                      {order.paymentStatus.replaceAll("_", " ")}
-                    </td>
-                    <td className="border-t border-slate-100 px-4 py-3 capitalize text-slate-600">
-                      {order.fulfilmentStatus.replaceAll("_", " ")}
-                    </td>
-                    <td className="border-t border-slate-100 px-4 py-3 text-right font-medium text-slate-800">
-                      {formatNaira(order.totalKobo)}
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    className="border-t border-slate-100 px-4 py-9 text-center text-sm text-slate-500"
-                    colSpan={6}
-                  >
-                    No orders yet. Customer orders will appear here once the
-                    pilot is live.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <p className="mt-2 text-sm text-slate-500">
+          Review distributor restock requests, approve available stock, and
+          track dispatches from one queue.
+        </p>
+        <a
+          className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-slate-700 hover:text-slate-950"
+          href="/admin/restock"
+        >
+          Open restock approvals
+          <ArrowUpRight size={14} />
+        </a>
       </section>
     </main>
   );
