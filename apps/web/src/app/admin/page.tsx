@@ -1,20 +1,18 @@
 import {
   ArrowUpRight,
   Bell,
-  CalendarDays,
-  ChevronDown,
   CircleAlert,
   ClipboardCheck,
   Clock3,
-  MapPinned,
   MoreHorizontal,
   Package,
   Search,
-  Truck,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { count, eq, gte } from "drizzle-orm";
+import { and, count, desc, eq, gte, lt } from "drizzle-orm";
 import { AdminUtilityActions } from "@/components/admin-utility-actions";
+import { AdminDashboardPeriodSelect } from "@/components/admin-dashboard-period-select";
+import { AdminRestockTrendChart } from "@/components/admin-restock-trend-chart";
 import { SignOutButton } from "@/components/sign-out-button";
 import { db } from "@/db";
 import {
@@ -49,10 +47,40 @@ function Panel({
   );
 }
 
-export default async function AdminHomePage() {
-  const weekStart = new Date();
+export default async function AdminHomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ range?: string }>;
+}) {
+  const { range } = await searchParams;
+  const period = range === "month" || range === "year" ? range : "week";
+  const today = new Date();
+  const weekStart = new Date(today);
   weekStart.setHours(0, 0, 0, 0);
   weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const nextMonthStart = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+  const previousMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const yearStart = new Date(today.getFullYear(), 0, 1);
+  const nextYearStart = new Date(today.getFullYear() + 1, 0, 1);
+  const dataStart = weekStart < yearStart ? weekStart : yearStart;
+  const weekDays = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(weekStart);
+    date.setDate(weekStart.getDate() + index);
+    return date;
+  });
+  const monthDays = Array.from(
+    {
+      length: Math.round(
+        (nextMonthStart.getTime() - monthStart.getTime()) / 86_400_000,
+      ),
+    },
+    (_, index) => {
+      const date = new Date(monthStart);
+      date.setDate(monthStart.getDate() + index);
+      return date;
+    },
+  );
 
   const [
     restockCount,
@@ -60,6 +88,9 @@ export default async function AdminHomePage() {
     distributorCount,
     productCount,
     marketCount,
+    restockRequests,
+    pendingRestockPreview,
+    previousMonthRestockCount,
   ] = await Promise.all([
     db
       .select({ value: count() })
@@ -78,26 +109,133 @@ export default async function AdminHomePage() {
       .from(products)
       .where(eq(products.isActive, true)),
     db.select({ value: count() }).from(markets),
+    db
+      .select({ createdAt: restockOrders.createdAt })
+      .from(restockOrders)
+      .where(
+        and(
+          gte(restockOrders.createdAt, dataStart),
+          lt(restockOrders.createdAt, nextYearStart),
+        ),
+      ),
+    db
+      .select({
+        id: restockOrders.id,
+        createdAt: restockOrders.createdAt,
+        distributor: distributorProfiles.businessName,
+      })
+      .from(restockOrders)
+      .innerJoin(
+        distributorProfiles,
+        eq(distributorProfiles.id, restockOrders.distributorId),
+      )
+      .where(eq(restockOrders.status, "submitted"))
+      .orderBy(desc(restockOrders.createdAt))
+      .limit(3),
+    db
+      .select({ value: count() })
+      .from(restockOrders)
+      .where(
+        and(
+          gte(restockOrders.createdAt, previousMonthStart),
+          lt(restockOrders.createdAt, monthStart),
+        ),
+      ),
   ]);
 
+  const restockTrend = monthDays.map((date) => {
+    const nextDate = new Date(date);
+    nextDate.setDate(date.getDate() + 1);
+    const requests = restockRequests.filter(
+      (request) =>
+        request.createdAt >= date && request.createdAt < nextDate,
+    ).length;
+
+    return {
+      label: `${new Intl.DateTimeFormat("en-NG", { month: "short" }).format(date)} ${date.getDate()}`,
+      date: new Intl.DateTimeFormat("en-NG", {
+        weekday: "long",
+        day: "numeric",
+        month: "short",
+      }).format(date),
+      requests,
+    };
+  });
+
+  const restockWeekTrend = weekDays.map((date) => {
+    const nextDate = new Date(date);
+    nextDate.setDate(date.getDate() + 1);
+    return {
+      label: new Intl.DateTimeFormat("en-NG", { weekday: "short" }).format(date),
+      date: new Intl.DateTimeFormat("en-NG", {
+        weekday: "long",
+        day: "numeric",
+        month: "short",
+      }).format(date),
+      requests: restockRequests.filter(
+        (request) => request.createdAt >= date && request.createdAt < nextDate,
+      ).length,
+    };
+  });
+
+  const restockYearTrend = Array.from({ length: 12 }, (_, index) => {
+    const date = new Date(today.getFullYear(), index, 1);
+    const nextDate = new Date(today.getFullYear(), index + 1, 1);
+    return {
+      label: new Intl.DateTimeFormat("en-NG", { month: "short" }).format(date),
+      date: new Intl.DateTimeFormat("en-NG", { month: "long", year: "numeric" }).format(date),
+      requests: restockRequests.filter((request) => request.createdAt >= date && request.createdAt < nextDate).length,
+    };
+  });
+
+  const restockRequestsThisMonth = restockTrend.reduce(
+    (total, point) => total + point.requests,
+    0,
+  );
+  const previousMonthRequests = previousMonthRestockCount[0]?.value ?? 0;
+  const monthComparison =
+    previousMonthRequests === 0
+      ? restockRequestsThisMonth
+        ? { label: "New activity this month", tone: "text-emerald-600" }
+        : { label: "No change from last month", tone: "text-slate-500" }
+      : (() => {
+          const percentage = Math.round(
+            ((restockRequestsThisMonth - previousMonthRequests) /
+              previousMonthRequests) *
+              100,
+          );
+          if (percentage === 0) {
+            return { label: "No change from last month", tone: "text-slate-500" };
+          }
+          return {
+            label: `${percentage > 0 ? "↑" : "↓"} ${Math.abs(percentage)}% vs last month`,
+            tone: percentage > 0 ? "text-emerald-600" : "text-rose-600",
+          };
+        })();
+
   const restockRequestsThisWeek = restockCount[0]?.value ?? 0;
+  const restockRequestsThisYear = restockYearTrend.reduce(
+    (total, point) => total + point.requests,
+    0,
+  );
+  const selectedRestockRequests =
+    period === "week"
+      ? restockRequestsThisWeek
+      : period === "month"
+        ? restockRequestsThisMonth
+        : restockRequestsThisYear;
   const pendingRestockRequests = pendingRestockCount[0]?.value ?? 0;
   const activeDistributors = distributorCount[0]?.value ?? 0;
   const activeProducts = productCount[0]?.value ?? 0;
   const activeMarkets = marketCount[0]?.value ?? 0;
-  const setupComplete = [
-    activeMarkets > 0,
-    activeDistributors > 0,
-    activeProducts > 0,
-  ].filter(Boolean).length;
   const metrics = [
     {
       icon: ClipboardCheck,
-      label: "Restock requests this week",
-      value: String(restockRequestsThisWeek),
-      change: restockRequestsThisWeek
+      label: `Restock requests this ${period}`,
+      value: String(selectedRestockRequests),
+      change: selectedRestockRequests
         ? "Distributor requests received"
-        : "No requests this week",
+        : `No requests this ${period}`,
       tone: "text-indigo-600",
     },
     {
@@ -108,6 +246,7 @@ export default async function AdminHomePage() {
         ? "Restock requests need review"
         : "Approval queue is clear",
       tone: pendingRestockRequests ? "text-amber-600" : "text-emerald-600",
+      href: "/admin/restock",
     },
     {
       icon: Package,
@@ -117,39 +256,6 @@ export default async function AdminHomePage() {
         ? "Products available for ordering"
         : "No stock records yet",
       tone: activeProducts ? "text-emerald-600" : "text-slate-500",
-    },
-  ];
-  const activities = [
-    {
-      icon: MapPinned,
-      title: activeMarkets
-        ? "Territories are ready"
-        : "Set up your first territory",
-      text: activeMarkets
-        ? `${activeMarkets} markets are available for routing.`
-        : "Add a state, LGA, and market to begin routing customers.",
-      time: activeMarkets ? "Complete" : "Next step",
-      color: "text-indigo-600 bg-indigo-50 border-indigo-100",
-    },
-    {
-      icon: Truck,
-      title: activeDistributors
-        ? "Distributor network is ready"
-        : "Create a distributor",
-      text: activeDistributors
-        ? `${activeDistributors} active distributors can submit restock requests.`
-        : "Add the pilot distributor and its owner contact details.",
-      time: activeDistributors ? "Complete" : "Then",
-      color: "text-emerald-600 bg-emerald-50 border-emerald-100",
-    },
-    {
-      icon: Package,
-      title: activeProducts ? "Catalogue is ready" : "Load opening stock",
-      text: activeProducts
-        ? `${activeProducts} active products are ready for allocation.`
-        : "Create products, prices, and starting quantities.",
-      time: activeProducts ? "Complete" : "After setup",
-      color: "text-amber-600 bg-amber-50 border-amber-100",
     },
   ];
   return (
@@ -173,11 +279,7 @@ export default async function AdminHomePage() {
         </div>
         <div className="flex items-center gap-2">
           <AdminUtilityActions />
-          <button className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 hover:bg-slate-50">
-            <CalendarDays size={15} />
-            This week
-            <ChevronDown size={14} />
-          </button>
+          <AdminDashboardPeriodSelect value={period} />
           <button
             aria-label="More dashboard actions"
             className="grid size-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
@@ -188,11 +290,9 @@ export default async function AdminHomePage() {
       </div>
 
       <div className="mt-6 grid gap-4 xl:grid-cols-3">
-        {metrics.map(({ icon: Icon, label, value, change, tone }) => (
-          <section
-            className="overflow-hidden rounded-xl border border-slate-200 bg-white"
-            key={label}
-          >
+        {metrics.map(({ icon: Icon, label, value, change, tone, href }) => {
+          const card = (
+            <section className="h-full overflow-hidden rounded-xl border border-slate-200 bg-white">
             <div className="panel-heading flex h-9 items-center justify-between border-b border-slate-100 px-3">
               <span className="text-xs font-medium text-slate-600">
                 {label}
@@ -205,94 +305,59 @@ export default async function AdminHomePage() {
               </p>
               <p className={`mt-2 text-xs ${tone}`}>{change}</p>
             </div>
-          </section>
-        ))}
+            </section>
+          );
+
+          return href ? (
+            <a className="block transition-transform hover:-translate-y-0.5" href={href} key={label}>
+              {card}
+            </a>
+          ) : (
+            <div key={label}>{card}</div>
+          );
+        })}
       </div>
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(330px,0.75fr)]">
+      <div className="mt-4">
         <Panel
           icon={ClipboardCheck}
           title="Restock request trend"
-          action={
-            <button className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-600">
-              <CalendarDays size={14} />
-              This week
-              <ChevronDown size={13} />
-            </button>
-          }
         >
-          <div className="p-4">
-            <div className="flex items-baseline gap-3">
-              <p className="text-3xl font-semibold tracking-tight">
-                {restockRequestsThisWeek}
-              </p>
-              <p className="text-xs text-slate-500">
-                {restockRequestsThisWeek
-                  ? "Distributor requests received since Monday"
-                  : "Restock requests will appear here after launch"}
-              </p>
-            </div>
-            <div className="mt-6 flex h-44 items-end gap-2 border-b border-slate-100 px-1 pb-0">
-              {[28, 44, 34, 58, 42, 69, 52, 44, 60, 36, 49, 31].map(
-                (height, index) => (
-                  <div
-                    className="group flex h-full flex-1 items-end"
-                    key={index}
-                  >
-                    <div
-                      className={`w-full rounded-t-md border border-slate-200 bg-linear-to-t from-slate-100 to-slate-50 ${index === 6 ? "border-slate-700 bg-slate-800" : ""}`}
-                      style={{ height: `${height}%` }}
-                    />
-                  </div>
-                ),
-              )}
-            </div>
-            <div className="mt-2 flex justify-between px-1 text-[11px] text-slate-400">
-              <span>Mon</span>
-              <span>Tue</span>
-              <span>Wed</span>
-              <span>Thu</span>
-              <span>Fri</span>
-              <span>Sat</span>
-              <span>Sun</span>
-            </div>
-          </div>
-        </Panel>
-        <Panel
-          icon={CircleAlert}
-          title="Setup checklist"
-          action={
-            <span className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">
-              {setupComplete} / 3 complete
-            </span>
-          }
-        >
-          <div className="divide-y divide-dashed divide-slate-200 px-4">
-            {activities.map(({ icon: Icon, title, text, time, color }) => (
-              <div className="flex gap-3 py-4" key={title}>
-                <span
-                  className={`grid size-8 shrink-0 place-items-center rounded-lg border ${color}`}
-                >
-                  <Icon size={15} />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex justify-between gap-3">
-                    <p className="text-sm font-medium text-slate-800">
-                      {title}
-                    </p>
-                    <span className="whitespace-nowrap text-[11px] text-slate-400">
-                      {time}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
-                    {text}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
+          <AdminRestockTrendChart
+            monthComparison={monthComparison}
+            monthData={restockTrend}
+            period={period}
+            weekData={restockWeekTrend}
+            yearData={restockYearTrend}
+          />
         </Panel>
       </div>
+
+      <section className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <div className="panel-heading flex h-12 items-center justify-between border-b border-slate-200 px-4">
+          <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+            <CircleAlert size={16} className="text-amber-500" />
+            Needs review
+          </div>
+          <a className="text-xs font-medium text-slate-700 hover:text-slate-950" href="/admin/restock">
+            View all requests
+          </a>
+        </div>
+        {pendingRestockPreview.length ? (
+          <div className="grid divide-y divide-slate-100 md:grid-cols-3 md:divide-x md:divide-y-0">
+            {pendingRestockPreview.map((request) => (
+              <a className="block px-4 py-3 hover:bg-slate-50" href="/admin/restock" key={request.id}>
+                <p className="truncate text-sm font-medium text-slate-700">{request.distributor}</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Submitted {new Intl.DateTimeFormat("en-NG", { dateStyle: "medium" }).format(request.createdAt)}
+                </p>
+              </a>
+            ))}
+          </div>
+        ) : (
+          <p className="px-4 py-6 text-sm text-slate-500">The approval queue is clear.</p>
+        )}
+      </section>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(330px,0.75fr)]">
         <Panel
