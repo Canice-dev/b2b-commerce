@@ -6,9 +6,11 @@ import { authClient } from "@/lib/auth-client";
 
 export function SignOutButton({
   className = "",
+  label,
   redirectTo = "/sign-in",
 }: {
   className?: string;
+  label?: string;
   redirectTo?: string;
 }) {
   const router = useRouter();
@@ -28,7 +30,7 @@ export function SignOutButton({
       onClick={signOut}
       type="button"
     >
-      {isSigningOut ? "Signing out…" : "Sign out"}
+      {isSigningOut ? "Signing out…" : (label ?? "Sign out")}
     </button>
   );
 }

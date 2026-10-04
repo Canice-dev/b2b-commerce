@@ -23,6 +23,7 @@ Ship a production pilot in three weeks for one distributor and one market, provi
 ### Phase 2 — operational order path
 
 - Build distributor catalogue, stock, price and minimum-order configuration.
+- Build the distributor-to-company replenishment path: distributors request product quantities with unit-price visibility; company admins manually approve or reject requests; approved stock is dispatched and confirmed on receipt; both company and distributor inventory movements are retained for audit.
 - Build customer onboarding, assigned catalogue, cart, stock/minimum validation, immutable snapshots and pay-on-delivery order transaction.
 - Build distributor order queue, dispatch, unable-to-fulfil, partial fulfilment, signature capture and customer order history.
 - Build durable inbox notifications, then push delivery/deep links.
@@ -44,6 +45,7 @@ Ship a production pilot in three weeks for one distributor and one market, provi
 
 - A new customer can install the public app, sign in, complete onboarding, see only their assigned distributor catalogue, and place a valid pay-on-delivery or verified prepaid order.
 - The distributor can manage pilot catalogue/stock, view orders, dispatch, partially fulfil or fail fulfilment correctly, and complete delivery only with a signature.
+- A distributor can request stock from the company; a company admin manually approves or rejects the request; company dispatch and distributor receipt update their respective stock records with audit history.
 - Inventory cannot oversell under concurrent checkouts; order snapshots/audit history are retained.
 - Paystack webhooks and refunds are verified/idempotent; exceptions are visible to the company admin.
 - Company admin can manage pilot territory relationships and see all agreed operational reports.

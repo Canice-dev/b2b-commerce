@@ -11,6 +11,7 @@ import {
   MapPinned,
   Menu,
   Package,
+  ClipboardCheck,
   PanelLeft,
   PanelRight,
   Search,
@@ -32,6 +33,7 @@ const primaryNavigation: ReadonlyArray<{
   { href: "/admin/distributors", icon: Truck, label: "Distributors" },
   { href: "/admin/catalogue", icon: Package, label: "Catalogue & stock" },
   { href: "/admin/orders", icon: ShoppingCart, label: "Orders" },
+  { href: "/admin/restock", icon: ClipboardCheck, label: "Restock approvals" },
 ];
 
 const insightNavigation: ReadonlyArray<{

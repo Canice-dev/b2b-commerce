@@ -62,6 +62,19 @@ export const inventoryMovementReason = pgEnum("inventory_movement_reason", [
   "release",
   "partial_fulfilment",
 ]);
+export const restockOrderStatus = pgEnum("restock_order_status", [
+  "submitted",
+  "approved",
+  "partially_approved",
+  "rejected",
+  "dispatched",
+  "received",
+  "cancelled",
+]);
+export const distributorInventoryMovementReason = pgEnum(
+  "distributor_inventory_movement_reason",
+  ["restock_received", "manual_adjustment"],
+);
 export const refundStatus = pgEnum("refund_status", [
   "requested",
   "pending",
@@ -519,6 +532,112 @@ export const inventoryMovements = pgTable(
       table.productId,
       table.createdAt,
     ),
+  ],
+);
+
+export const restockOrders = pgTable(
+  "restock_orders",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    distributorId: uuid("distributor_id")
+      .notNull()
+      .references(() => distributorProfiles.id, { onDelete: "restrict" }),
+    status: restockOrderStatus("status").default("submitted").notNull(),
+    note: text("note"),
+    reviewedByUserId: uuid("reviewed_by_user_id").references(() => users.id, {
+      onDelete: "restrict",
+    }),
+    reviewNote: text("review_note"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    dispatchedAt: timestamp("dispatched_at", { withTimezone: true }),
+    receivedAt: timestamp("received_at", { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    index("restock_orders_distributor_status_created_index").on(
+      table.distributorId,
+      table.status,
+      table.createdAt,
+    ),
+  ],
+);
+
+export const distributorInventories = pgTable(
+  "distributor_inventories",
+  {
+    distributorId: uuid("distributor_id")
+      .notNull()
+      .references(() => distributorProfiles.id, { onDelete: "restrict" }),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "restrict" }),
+    availableQuantity: integer("available_quantity").default(0).notNull(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.distributorId, table.productId] }),
+    check(
+      "distributor_inventories_quantity_nonnegative",
+      sql`${table.availableQuantity} >= 0`,
+    ),
+  ],
+);
+
+export const distributorInventoryMovements = pgTable(
+  "distributor_inventory_movements",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    distributorId: uuid("distributor_id")
+      .notNull()
+      .references(() => distributorProfiles.id, { onDelete: "restrict" }),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "restrict" }),
+    restockOrderId: uuid("restock_order_id").references(() => restockOrders.id, {
+      onDelete: "restrict",
+    }),
+    quantityDelta: integer("quantity_delta").notNull(),
+    reason: distributorInventoryMovementReason("reason").notNull(),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, {
+      onDelete: "restrict",
+    }),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("distributor_inventory_movements_inventory_created_index").on(
+      table.distributorId,
+      table.productId,
+      table.createdAt,
+    ),
+  ],
+);
+
+export const restockOrderItems = pgTable(
+  "restock_order_items",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    restockOrderId: uuid("restock_order_id")
+      .notNull()
+      .references(() => restockOrders.id, { onDelete: "restrict" }),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "restrict" }),
+    productNameSnapshot: text("product_name_snapshot").notNull(),
+    variantSnapshot: text("variant_snapshot"),
+    unitSnapshot: text("unit_snapshot").notNull(),
+    requestedQuantity: integer("requested_quantity").notNull(),
+    approvedQuantity: integer("approved_quantity"),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    check("restock_order_items_requested_positive", sql`${table.requestedQuantity} > 0`),
+    check("restock_order_items_approved_nonnegative", sql`${table.approvedQuantity} is null or ${table.approvedQuantity} >= 0`),
+    uniqueIndex("restock_order_items_order_product_unique").on(
+      table.restockOrderId,
+      table.productId,
+    ),
+    index("restock_order_items_order_id_index").on(table.restockOrderId),
   ],
 );
 
