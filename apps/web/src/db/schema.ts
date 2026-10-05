@@ -284,6 +284,53 @@ export const adminProfiles = pgTable("admin_profiles", {
   createdAt: createdAt(),
 });
 
+// One company conversation is maintained for each distributor. Company admins
+// share the company side of the thread, while a distributor can access only
+// the conversation associated with their own profile.
+export const adminDistributorConversations = pgTable(
+  "admin_distributor_conversations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    distributorId: uuid("distributor_id")
+      .notNull()
+      .references(() => distributorProfiles.id, { onDelete: "restrict" }),
+    lastAdminReadAt: timestamp("last_admin_read_at", { withTimezone: true }),
+    lastDistributorReadAt: timestamp("last_distributor_read_at", {
+      withTimezone: true,
+    }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    uniqueIndex("admin_distributor_conversations_distributor_unique").on(
+      table.distributorId,
+    ),
+  ],
+);
+
+export const adminDistributorMessages = pgTable(
+  "admin_distributor_messages",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => adminDistributorConversations.id, {
+        onDelete: "restrict",
+      }),
+    senderUserId: uuid("sender_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    body: text("body").notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("admin_distributor_messages_conversation_created_index").on(
+      table.conversationId,
+      table.createdAt,
+    ),
+  ],
+);
+
 export const distributorSettings = pgTable(
   "distributor_settings",
   {

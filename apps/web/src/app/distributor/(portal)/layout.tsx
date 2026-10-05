@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { DistributorSidebar } from "@/components/distributor-sidebar";
 import { auth } from "@/lib/auth";
 import { getActiveDistributor } from "@/lib/authorization";
+import { getDistributorUnreadMessageCount } from "@/lib/admin-distributor-chat";
 
 export default async function DistributorPortalLayout({
   children,
@@ -13,12 +14,17 @@ export default async function DistributorPortalLayout({
   if (!distributor) {
     redirect("/distributor/sign-in?error=not-authorized");
   }
+  const unreadMessages = await getDistributorUnreadMessageCount(
+    distributor.id,
+    session.user.id,
+  );
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-950">
       <DistributorSidebar
         businessName={distributor.businessName}
         email={session.user.email ?? ""}
+        unreadMessages={unreadMessages}
       />
       <div className="min-h-screen transition-[padding] duration-200 lg:pl-(--distributor-sidebar-width)">
         {children}

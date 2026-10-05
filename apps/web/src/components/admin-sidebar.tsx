@@ -9,6 +9,7 @@ import {
   CircleHelp,
   LayoutGrid,
   MapPinned,
+  MessageCircle,
   Menu,
   Package,
   ClipboardCheck,
@@ -33,6 +34,7 @@ const primaryNavigation: ReadonlyArray<{
   { href: "/admin/distributors", icon: Truck, label: "Distributors" },
   { href: "/admin/catalogue", icon: Package, label: "Catalogue & stock" },
   { href: "/admin/restock", icon: ClipboardCheck, label: "Restock approvals" },
+  { href: "/admin/messages", icon: MessageCircle, label: "Messages" },
 ];
 
 const insightNavigation: ReadonlyArray<{
@@ -55,6 +57,7 @@ type SidebarContentProps = {
   collapsed: boolean;
   email: string;
   name: string;
+  unreadMessages: number;
   onNavigate?: () => void;
   onToggle?: () => void;
 };
@@ -63,14 +66,17 @@ function NavList({
   collapsed,
   items,
   onNavigate,
+  unreadMessages,
 }: Pick<SidebarContentProps, "collapsed" | "onNavigate"> & {
   items: typeof primaryNavigation;
+  unreadMessages: number;
 }) {
   const pathname = usePathname();
 
   return (
     <div className="space-y-1">
       {items.map(({ href, icon: Icon, label }) => {
+        const unread = href === "/admin/messages" ? unreadMessages : 0;
         const active =
           href === "/admin" ? pathname === href : pathname.startsWith(href);
         return (
@@ -84,6 +90,7 @@ function NavList({
           >
             <Icon className="size-4 shrink-0" strokeWidth={1.7} />
             {!collapsed ? <span className="truncate">{label}</span> : null}
+            {unread ? <span className={`grid min-w-4 place-items-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white ${collapsed ? "absolute -right-1 -top-1 size-3 min-w-0 px-0 text-[0px]" : "ml-auto h-4"}`}>{unread > 99 ? "99+" : unread}</span> : null}
             {collapsed ? (
               <span className="pointer-events-none absolute left-[calc(100%+0.65rem)] z-70 hidden whitespace-nowrap rounded-md bg-[#202a34] px-2.5 py-1.5 text-xs font-medium text-white shadow-lg group-hover:block group-focus-visible:block">
                 {label}
@@ -100,6 +107,7 @@ function SidebarContent({
   collapsed,
   email,
   name,
+  unreadMessages,
   onNavigate,
   onToggle,
 }: SidebarContentProps) {
@@ -174,6 +182,7 @@ function SidebarContent({
           collapsed={collapsed}
           items={primaryNavigation}
           onNavigate={onNavigate}
+          unreadMessages={unreadMessages}
         />
         {!collapsed ? (
           <p className="mb-3 mt-7 text-[11px] font-medium uppercase tracking-normal text-[#7a828c]">
@@ -185,6 +194,7 @@ function SidebarContent({
             collapsed={collapsed}
             items={insightNavigation}
             onNavigate={onNavigate}
+            unreadMessages={0}
           />
         </div>
       </nav>
@@ -242,7 +252,7 @@ function SidebarContent({
   );
 }
 
-export function AdminSidebar({ name, email }: { name: string; email: string }) {
+export function AdminSidebar({ name, email, unreadMessages }: { name: string; email: string; unreadMessages: number }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -304,6 +314,7 @@ export function AdminSidebar({ name, email }: { name: string; email: string }) {
             collapsed={false}
             email={email}
             name={name}
+            unreadMessages={unreadMessages}
             onNavigate={() => setIsOpen(false)}
           />
         </div>
@@ -312,6 +323,7 @@ export function AdminSidebar({ name, email }: { name: string; email: string }) {
             collapsed={isCollapsed}
             email={email}
             name={name}
+            unreadMessages={unreadMessages}
             onToggle={toggleSidebar}
           />
         </div>

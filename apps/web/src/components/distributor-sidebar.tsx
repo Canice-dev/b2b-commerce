@@ -9,6 +9,7 @@ import {
   CircleHelp,
   LayoutGrid,
   MapPinned,
+  MessageCircle,
   Package,
   PackagePlus,
   PanelLeft,
@@ -31,6 +32,7 @@ const navigation: ReadonlyArray<{
   { href: "/distributor/deliveries", icon: Truck, label: "Deliveries" },
   { href: "/distributor/catalogue", icon: Package, label: "Catalogue" },
   { href: "/distributor/restock", icon: PackagePlus, label: "Restock from company" },
+  { href: "/distributor/messages", icon: MessageCircle, label: "Company messages" },
   { href: "/distributor/service-areas", icon: MapPinned, label: "Service areas" },
   { href: "/distributor/performance", icon: BarChart3, label: "Performance" },
 ];
@@ -38,9 +40,11 @@ const navigation: ReadonlyArray<{
 export function DistributorSidebar({
   businessName,
   email,
+  unreadMessages,
 }: {
   businessName: string;
   email: string;
+  unreadMessages: number;
 }) {
   const pathname = usePathname();
   const initials = businessName.slice(0, 2).toUpperCase();
@@ -130,6 +134,7 @@ export function DistributorSidebar({
         <div className="flex flex-col gap-1">
           {navigation.map(({ href, icon: Icon, label, soon }) => {
             const active = href === pathname;
+            const unread = href === "/distributor/messages" ? unreadMessages : 0;
             const className = `group relative flex h-8 items-center rounded-lg text-[13px] ${isCollapsed ? "justify-center" : "gap-2.5 px-3"} ${active ? "border border-[#e1e3e1] bg-white font-medium text-[#253038] shadow-[0_1px_2px_rgba(17,20,26,0.04)]" : "text-[#58616e]"}`;
             const item = (
               <>
@@ -140,6 +145,7 @@ export function DistributorSidebar({
                     Soon
                   </span>
                 ) : null}
+                {unread ? <span className={`grid min-w-4 place-items-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white ${isCollapsed ? "absolute -right-1 -top-1 size-3 min-w-0 px-0 text-[0px]" : "ml-auto h-4"}`}>{unread > 99 ? "99+" : unread}</span> : null}
                 {isCollapsed ? <span className="pointer-events-none absolute left-[calc(100%+0.65rem)] z-70 hidden whitespace-nowrap rounded-md bg-[#202a34] px-2.5 py-1.5 text-xs font-medium text-white shadow-lg group-hover:block">{label}</span> : null}
               </>
             );
