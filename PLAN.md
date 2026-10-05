@@ -4,6 +4,11 @@
 
 Ship a production pilot in three weeks for one distributor and one market, proving that customers can self-order and the distributor can fulfil without manual sales-representative order collection.
 
+## Implementation status
+
+- **Completed:** Company-admin ↔ distributor in-app messaging foundation. Each distributor has a private company conversation with persisted messages, role-scoped access, sidebar unread badges, and read-state tracking.
+- **Deferred:** Distributor ↔ customer chat remains a v2 feature, consistent with the PRD. It will require separate customer/distributor conversation rules, order context, privacy decisions, and notification support.
+
 ## Delivery sequence
 
 ### Phase 0 — launch inputs (immediate)
@@ -24,6 +29,7 @@ Ship a production pilot in three weeks for one distributor and one market, provi
 
 - Build distributor catalogue, stock, price and minimum-order configuration.
 - Build the distributor-to-company replenishment path: distributors request product quantities with unit-price visibility; company admins manually approve or reject requests; approved stock is dispatched and confirmed on receipt; both company and distributor inventory movements are retained for audit.
+- Build the company-admin ↔ distributor operational message channel for stock, dispatch, and restock coordination. **Foundation completed:** private per-distributor threads, durable messages, read state, and unread badges are implemented; real-time delivery and notifications remain follow-up work.
 - Build customer onboarding, assigned catalogue, cart, stock/minimum validation, immutable snapshots and pay-on-delivery order transaction.
 - Build distributor order queue, dispatch, unable-to-fulfil, partial fulfilment, signature capture and customer order history. Customer-level order details remain visible only to the assigned distributor; company admins receive aggregate performance reporting.
 - Build durable inbox notifications, then push delivery/deep links.
