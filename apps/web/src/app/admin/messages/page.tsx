@@ -1,6 +1,7 @@
 import { asc, desc, eq } from "drizzle-orm";
 import { MessageCircle, Send } from "lucide-react";
 import { AdminPageShell } from "@/components/admin-page-shell";
+import { ChatAutoRefresh } from "@/components/chat-auto-refresh";
 import { ChatReadMarker } from "@/components/chat-read-marker";
 import {
   Message,
@@ -14,6 +15,7 @@ import {
   adminDistributorConversations,
   adminDistributorMessages,
   distributorProfiles,
+  restockOrders,
   users,
 } from "@/db/schema";
 import {
@@ -54,6 +56,19 @@ export default async function AdminMessagesPage({
         )
         .limit(1)
     : [];
+  const restockRequests = selectedDistributor
+    ? await db
+        .select({
+          id: restockOrders.id,
+          status: restockOrders.status,
+          createdAt: restockOrders.createdAt,
+        })
+        .from(restockOrders)
+        .where(eq(restockOrders.distributorId, selectedDistributor.id))
+        .orderBy(desc(restockOrders.createdAt))
+        .limit(30)
+    : [];
+  const restockById = new Map(restockRequests.map((request) => [request.id, request]));
   const messages = conversation
     ? (
         await db
@@ -62,6 +77,7 @@ export default async function AdminMessagesPage({
             body: adminDistributorMessages.body,
             createdAt: adminDistributorMessages.createdAt,
             senderUserId: adminDistributorMessages.senderUserId,
+            restockOrderId: adminDistributorMessages.restockOrderId,
             senderName: users.name,
           })
           .from(adminDistributorMessages)
@@ -92,6 +108,7 @@ export default async function AdminMessagesPage({
       label="Messages"
       title="Distributor messages"
     >
+      <ChatAutoRefresh />
       <section className="mt-6 grid min-h-145 overflow-hidden rounded-xl border border-slate-200 bg-white lg:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="border-b border-slate-200 lg:border-b-0 lg:border-r">
           <div className="border-b border-slate-100 px-4 py-3 text-xs font-medium text-slate-500">
@@ -145,6 +162,9 @@ export default async function AdminMessagesPage({
                     const sender = fromDistributor
                       ? selectedDistributor.businessName
                       : (message.senderName ?? "Company admin");
+                    const restockRequest = message.restockOrderId
+                      ? restockById.get(message.restockOrderId)
+                      : undefined;
                     return (
                       <Message
                         align={fromDistributor ? "start" : "end"}
@@ -166,6 +186,7 @@ export default async function AdminMessagesPage({
                           <div
                             className={`rounded-2xl px-4 py-3 text-sm leading-6 shadow-sm ${fromDistributor ? "rounded-tl-md border border-slate-200 bg-white text-slate-700" : "rounded-tr-md bg-slate-800 text-white"}`}
                           >
+                            {restockRequest ? <a className={`mb-2 block rounded-lg border px-2.5 py-2 text-xs ${fromDistributor ? "border-slate-200 bg-slate-50 text-slate-600" : "border-slate-600 bg-slate-700 text-slate-100"}`} href="/admin/restock"><span className="font-semibold">Restock #{restockRequest.id.slice(0, 8)}</span><span className="ml-2 capitalize">{restockRequest.status.replaceAll("_", " ")}</span></a> : null}
                             <p className="whitespace-pre-wrap">
                               {message.body}
                             </p>
@@ -198,6 +219,7 @@ export default async function AdminMessagesPage({
                   type="hidden"
                   value={selectedDistributor.id}
                 />
+                {restockRequests.length ? <select className="h-10 max-w-46 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-600" defaultValue="" name="restockOrderId"><option value="">No request attached</option>{restockRequests.map((request) => <option key={request.id} value={request.id}>#{request.id.slice(0, 8)} · {request.status.replaceAll("_", " ")}</option>)}</select> : null}
                 <div className="flex items-end gap-3 rounded-xl border border-slate-200 bg-slate-50 p-2 focus-within:border-slate-400 focus-within:bg-white">
                   <textarea
                     className="min-h-11 flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none"

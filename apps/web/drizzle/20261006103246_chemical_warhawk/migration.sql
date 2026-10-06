@@ -1,0 +1,2 @@
+ALTER TABLE "admin_distributor_messages" ADD COLUMN "restock_order_id" uuid;--> statement-breakpoint
+ALTER TABLE "admin_distributor_messages" ADD CONSTRAINT "admin_distributor_messages_VwjAnWZwhUYt_fkey" FOREIGN KEY ("restock_order_id") REFERENCES "restock_orders"("id") ON DELETE RESTRICT;

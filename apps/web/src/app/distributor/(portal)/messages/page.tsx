@@ -2,6 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { MessageCircle, Send } from "lucide-react";
 import { ChatReadMarker } from "@/components/chat-read-marker";
+import { ChatAutoRefresh } from "@/components/chat-auto-refresh";
 import {
   Message,
   MessageAvatar,
@@ -14,6 +15,7 @@ import {
   adminDistributorConversations,
   adminDistributorMessages,
   users,
+  restockOrders,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { getPortalDistributor } from "../_components/data";
@@ -38,6 +40,15 @@ export default async function DistributorMessagesPage() {
     .from(adminDistributorConversations)
     .where(eq(adminDistributorConversations.distributorId, distributor.id))
     .limit(1);
+  const restockRequests = await db
+    .select({ id: restockOrders.id, status: restockOrders.status })
+    .from(restockOrders)
+    .where(eq(restockOrders.distributorId, distributor.id))
+    .orderBy(desc(restockOrders.createdAt))
+    .limit(30);
+  const restockById = new Map(
+    restockRequests.map((request) => [request.id, request]),
+  );
   const messages = conversation
     ? (
         await db
@@ -46,6 +57,7 @@ export default async function DistributorMessagesPage() {
             body: adminDistributorMessages.body,
             createdAt: adminDistributorMessages.createdAt,
             senderUserId: adminDistributorMessages.senderUserId,
+            restockOrderId: adminDistributorMessages.restockOrderId,
             senderName: users.name,
           })
           .from(adminDistributorMessages)
@@ -68,6 +80,7 @@ export default async function DistributorMessagesPage() {
       icon={MessageCircle}
       title="Company messages"
     >
+      <ChatAutoRefresh />
       {conversation && hasUnreadMessages ? (
         <ChatReadMarker
           markRead={markDistributorConversationRead.bind(null, conversation.id)}
@@ -93,6 +106,9 @@ export default async function DistributorMessagesPage() {
               const sender = own
                 ? distributor.businessName
                 : (message.senderName ?? "Company admin");
+              const restockRequest = message.restockOrderId
+                ? restockById.get(message.restockOrderId)
+                : undefined;
               return (
                 <Message align={own ? "end" : "start"} key={message.id}>
                   <MessageAvatar
@@ -111,6 +127,19 @@ export default async function DistributorMessagesPage() {
                     <div
                       className={`rounded-2xl px-4 py-3 text-sm leading-6 shadow-sm ${own ? "rounded-tr-md bg-slate-800 text-white" : "rounded-tl-md border border-slate-200 bg-white text-slate-700"}`}
                     >
+                      {restockRequest ? (
+                        <a
+                          className={`mb-2 block rounded-lg border px-2.5 py-2 text-xs ${own ? "border-slate-600 bg-slate-700 text-slate-100" : "border-slate-200 bg-slate-50 text-slate-600"}`}
+                          href="/distributor/restock"
+                        >
+                          <span className="font-semibold">
+                            Restock #{restockRequest.id.slice(0, 8)}
+                          </span>
+                          <span className="ml-2 capitalize">
+                            {restockRequest.status.replaceAll("_", " ")}
+                          </span>
+                        </a>
+                      ) : null}
                       <p className="whitespace-pre-wrap">{message.body}</p>
                     </div>
                     <MessageFooter className="px-1 text-[10px]">
@@ -136,6 +165,21 @@ export default async function DistributorMessagesPage() {
           action={sendDistributorAdminMessage}
           className="border-t border-slate-200 bg-white p-4"
         >
+          {restockRequests.length ? (
+            <select
+              className="mb-2 h-9 max-w-48 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-600"
+              defaultValue=""
+              name="restockOrderId"
+            >
+              <option value="">No request attached</option>
+              {restockRequests.map((request) => (
+                <option key={request.id} value={request.id}>
+                  #{request.id.slice(0, 8)} ·{" "}
+                  {request.status.replaceAll("_", " ")}
+                </option>
+              ))}
+            </select>
+          ) : null}
           <div className="flex items-end gap-3 rounded-xl border border-slate-200 bg-slate-50 p-2 focus-within:border-slate-400 focus-within:bg-white">
             <textarea
               className="min-h-11 flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none"

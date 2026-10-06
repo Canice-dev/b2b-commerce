@@ -320,6 +320,10 @@ export const adminDistributorMessages = pgTable(
     senderUserId: uuid("sender_user_id")
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
+    restockOrderId: uuid("restock_order_id").references(
+      () => restockOrders.id,
+      { onDelete: "restrict" },
+    ),
     body: text("body").notNull(),
     createdAt: createdAt(),
   },

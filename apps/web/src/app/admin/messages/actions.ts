@@ -8,6 +8,7 @@ import {
   adminDistributorConversations,
   adminDistributorMessages,
   distributorProfiles,
+  restockOrders,
 } from "@/db/schema";
 import {
   getMessageBody,
@@ -39,12 +40,20 @@ export async function sendAdminDistributorMessage(formData: FormData) {
   if (!distributor) throw new Error("Distributor not found.");
 
   const body = getMessageBody(formData);
+  const restockOrderIdValue = formData.get("restockOrderId");
+  const restockOrderId =
+    typeof restockOrderIdValue === "string" ? restockOrderIdValue : "";
+  const [restockOrder] = restockOrderId
+    ? await db.select({ id: restockOrders.id }).from(restockOrders).where(and(eq(restockOrders.id, restockOrderId), eq(restockOrders.distributorId, distributor.id))).limit(1)
+    : [undefined];
+  if (restockOrderId && !restockOrder) throw new Error("Restock request not found.");
   const conversation = await getOrCreateAdminDistributorConversation(
     distributor.id,
   );
   await db.insert(adminDistributorMessages).values({
     conversationId: conversation.id,
     senderUserId: session.user.id,
+    restockOrderId: restockOrder?.id,
     body,
   });
   await db

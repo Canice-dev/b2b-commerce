@@ -1,4 +1,4 @@
-import { count, eq, sql } from "drizzle-orm";
+import { and, count, eq, gte, lt } from "drizzle-orm";
 import {
   BarChart3,
   MapPinned,
@@ -7,6 +7,8 @@ import {
   Store,
 } from "lucide-react";
 import { AdminPageShell } from "@/components/admin-page-shell";
+import { AdminDashboardPeriodSelect } from "@/components/admin-dashboard-period-select";
+import { AdminSalesTrendChart } from "@/components/admin-sales-trend-chart";
 import { db } from "@/db";
 import { distributorProfiles, markets, orders, products } from "@/db/schema";
 
@@ -15,8 +17,32 @@ const formatNaira = (kobo: number) =>
     kobo / 100,
   );
 
-export default async function ReportsPage() {
-  const [distributorCount, marketCount, productCount, orderStats] =
+export default async function ReportsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ range?: string }>;
+}) {
+  const { range } = await searchParams;
+  const period = range === "month" || range === "year" ? range : "week";
+  const today = new Date();
+  const weekStart = new Date(today);
+  weekStart.setHours(0, 0, 0, 0);
+  weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const yearStart = new Date(today.getFullYear(), 0, 1);
+  const rangeStart =
+    period === "week" ? weekStart : period === "month" ? monthStart : yearStart;
+  const rangeEnd =
+    period === "year"
+      ? new Date(today.getFullYear() + 1, 0, 1)
+      : period === "month"
+        ? new Date(today.getFullYear(), today.getMonth() + 1, 1)
+        : (() => {
+            const date = new Date(weekStart);
+            date.setDate(date.getDate() + 7);
+            return date;
+          })();
+  const [distributorCount, marketCount, productCount, periodOrders] =
     await Promise.all([
       db
         .select({ value: count() })
@@ -28,12 +54,69 @@ export default async function ReportsPage() {
         .from(products)
         .where(eq(products.isActive, true)),
       db
-        .select({
-          count: count(),
-          total: sql<number>`coalesce(sum(${orders.orderedTotalKobo}), 0)`,
-        })
-        .from(orders),
+        .select({ createdAt: orders.createdAt, total: orders.orderedTotalKobo })
+        .from(orders)
+        .where(
+          and(
+            gte(orders.createdAt, rangeStart),
+            lt(orders.createdAt, rangeEnd),
+          ),
+        ),
     ]);
+  const orderCount = periodOrders.length;
+  const salesTotal = periodOrders.reduce(
+    (total, order) => total + order.total,
+    0,
+  );
+  const points =
+    period === "year"
+      ? Array.from(
+          { length: 12 },
+          (_, index) => new Date(today.getFullYear(), index, 1),
+        )
+      : period === "month"
+        ? Array.from(
+            {
+              length: new Date(
+                today.getFullYear(),
+                today.getMonth() + 1,
+                0,
+              ).getDate(),
+            },
+            (_, index) =>
+              new Date(today.getFullYear(), today.getMonth(), index + 1),
+          )
+        : Array.from({ length: 7 }, (_, index) => {
+            const date = new Date(weekStart);
+            date.setDate(date.getDate() + index);
+            return date;
+          });
+  const salesTrend = points.map((date) => {
+    const nextDate =
+      period === "year"
+        ? new Date(date.getFullYear(), date.getMonth() + 1, 1)
+        : new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
+    return {
+      label:
+        period === "year"
+          ? new Intl.DateTimeFormat("en-NG", { month: "short" }).format(date)
+          : period === "week"
+            ? new Intl.DateTimeFormat("en-NG", { weekday: "short" }).format(
+                date,
+              )
+            : `${new Intl.DateTimeFormat("en-NG", { month: "short" }).format(date)} ${date.getDate()}`,
+      date: new Intl.DateTimeFormat("en-NG", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }).format(date),
+      sales: periodOrders
+        .filter(
+          (order) => order.createdAt >= date && order.createdAt < nextDate,
+        )
+        .reduce((total, order) => total + order.total, 0),
+    };
+  });
   const cards = [
     {
       icon: Store,
@@ -56,13 +139,14 @@ export default async function ReportsPage() {
     {
       icon: ShoppingCart,
       label: "Orders received",
-      value: orderStats[0]?.count ?? 0,
+      value: orderCount,
       tone: "text-sky-700 bg-sky-50",
     },
   ];
   return (
     <AdminPageShell
       action="Export report"
+      actionSlot={<AdminDashboardPeriodSelect value={period} />}
       description="Review performance across sales, stock, territories, and distributors."
       icon={BarChart3}
       label="Reports"
@@ -89,11 +173,20 @@ export default async function ReportsPage() {
       <section className="mt-4 rounded-xl border border-slate-200 bg-white p-5">
         <p className="text-sm font-medium text-slate-700">Sales performance</p>
         <p className="mt-1 text-sm text-slate-500">
-          Total value of all recorded orders.
+          Total value of orders received this {period}.
         </p>
         <p className="mt-5 text-3xl font-semibold tracking-tight text-slate-900">
-          {formatNaira(orderStats[0]?.total ?? 0)}
+          {formatNaira(salesTotal)}
         </p>
+      </section>
+      <section className="mt-4 rounded-xl border border-slate-200 bg-white p-5">
+        <div className="mb-5">
+          <p className="text-sm font-medium text-slate-700">Sales trend</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Order value over the selected period.
+          </p>
+        </div>
+        <AdminSalesTrendChart data={salesTrend} period={period} />
       </section>
     </AdminPageShell>
   );
