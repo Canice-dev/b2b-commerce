@@ -1,36 +1,15 @@
 import "../../../global.css";
-import { useState } from "react";
-import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { Image, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Image, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-import { authClient } from "@/lib/auth-client";
+import useSocialAuth from "@/hooks/useSocialAuth";
+import { OAUTH } from "../../../utils/constants";
 
 export default function AuthScreen() {
-  const [provider, setProvider] = useState<"google" | "apple" | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { handleSocialAuth, loadingStrategy } = useSocialAuth();
 
-  async function continueWith(providerName: "google" | "apple") {
-    setError(null);
-    setProvider(providerName);
-
-    const { error: signInError } = await authClient.signIn.social({
-      provider: providerName,
-      callbackURL: "/onboarding",
-    });
-
-    setProvider(null);
-
-    if (signInError) {
-      setError(signInError.message ?? "Unable to sign in. Please try again.");
-      // console.log("Error:", signInError);
-
-      return;
-    }
-
-    router.replace("/onboarding");
-  }
+  const isGoogleClicked = loadingStrategy === OAUTH.GOOGLE_OAUTH;
+  const isAppleClicked = loadingStrategy === OAUTH.APPLE_OAUTH;
 
   return (
     <View className="flex-1 overflow-hidden bg-[#201305]">
@@ -54,47 +33,42 @@ export default function AuthScreen() {
             Let&apos;s get your business moving.
           </Text>
           <Text className="mt-4 max-w-[320px] text-lg font-medium leading-[25px] text-white/85">
-            Sign in to browse your distributor&apos;s catalogue and place
+            Create an account to browse your distributor's catalogue and place
             orders.
           </Text>
 
           <View className="mt-8 gap-3">
             <Pressable
+              onPress={() => handleSocialAuth("oauth_google")}
               accessibilityRole="button"
-              accessibilityState={{ disabled: provider !== null }}
-              disabled={provider !== null}
-              onPress={() => continueWith("google")}
+              accessibilityLabel="Continue with Google"
               className="h-[60px] flex-row items-center justify-center rounded-full bg-white active:opacity-80"
+              disabled={loadingStrategy !== null}
             >
-              <Text className="mr-3 text-xl font-bold text-[#4285F4]">G</Text>
-              <Text className="text-[17px] font-bold text-[#161616]">
-                {provider === "google"
-                  ? "Connecting..."
-                  : "Continue with Google"}
-              </Text>
+              {isGoogleClicked ? (
+                <ActivityIndicator size="small" color="#161616" />
+              ) : (
+                <Text className="text-[17px] font-bold text-[#161616]">
+                  Continue with Google
+                </Text>
+              )}
             </Pressable>
             <Pressable
+              onPress={() => handleSocialAuth("oauth_apple")}
               accessibilityRole="button"
-              accessibilityState={{ disabled: provider !== null }}
-              disabled={provider !== null}
-              onPress={() => continueWith("apple")}
+              accessibilityLabel="Continue with Apple"
               className="h-[60px] flex-row items-center justify-center rounded-full bg-black/80 active:opacity-80"
+              disabled={loadingStrategy !== null}
             >
-              <Text className="mr-3 text-[23px] text-white">●</Text>
-              <Text className="text-[17px] font-bold text-white">
-                {provider === "apple" ? "Connecting..." : "Continue with Apple"}
-              </Text>
+              {isAppleClicked ? (
+                <ActivityIndicator size="small" color="#161616" />
+              ) : (
+                <Text className="text-[17px] font-bold text-[#161616]">
+                  Continue with Apple
+                </Text>
+              )}
             </Pressable>
           </View>
-
-          {error ? (
-            <Text
-              accessibilityRole="alert"
-              className="mt-4 text-center text-sm text-red-200"
-            >
-              {error}
-            </Text>
-          ) : null}
 
           <Text className="mt-5 px-2 text-center text-xs leading-[17px] text-white/70">
             By continuing, you agree to our{" "}

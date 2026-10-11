@@ -22,7 +22,8 @@ Ship a production pilot in three weeks for one distributor and one market, provi
 
 - Set up the monorepo with `apps/mobile` (Expo) and `apps/web` (Next.js); share TypeScript domain/API contracts where useful.
 - Provision separate staging and production Neon databases, media storage, secrets and webhook URLs.
-- Create schema/migrations, constraints, indexes, audit events, role/session model, email/password web auth, and Google/Apple mobile auth.
+- Create schema/migrations, constraints, indexes, audit events, role/session model, email/password web auth, and Clerk-backed Google/Apple mobile auth.
+- Configure the Clerk production instance, native iOS/Android applications, social connections, and the allowlisted mobile SSO callback URL (`mobile:///oauth-callback`). Validate existing-user sign-in and first-time social sign-up, including any Clerk-required profile fields or legal acceptance.
 - Build company-admin territory/distributor management before customer catalogue access, because correct routing is a product invariant.
 
 ### Phase 2 — operational order path
@@ -49,7 +50,7 @@ Ship a production pilot in three weeks for one distributor and one market, provi
 
 ## Definition of done for the pilot
 
-- A new customer can install the public app, sign in, complete onboarding, see only their assigned distributor catalogue, and place a valid pay-on-delivery or verified prepaid order.
+- A new customer can install the public app, complete Google or Apple sign-in/sign-up through Clerk, complete any required account details and onboarding, see only their assigned distributor catalogue, and place a valid pay-on-delivery or verified prepaid order.
 - The distributor can manage pilot catalogue/stock, view orders, dispatch, partially fulfil or fail fulfilment correctly, and complete delivery only with a signature.
 - A distributor can request stock from the company; a company admin manually approves or rejects the request; company dispatch and distributor receipt update their respective stock records with audit history.
 - Inventory cannot oversell under concurrent checkouts; order snapshots/audit history are retained.
@@ -63,7 +64,7 @@ Ship a production pilot in three weeks for one distributor and one market, provi
 - **ASSUMPTION:** The company is the Paystack primary merchant and has authority to create/manage distributor subaccounts and the agreed split settlement.
 - **ASSUMPTION:** A hosted private object-storage provider and Next.js deployment host will be selected during implementation; neither was specified.
 - **ASSUMPTION:** Product images and delivery signatures will be stored as private image files with controlled access.
-- **ASSUMPTION:** Admin and distributor email/password accounts will be provisioned/managed by the company; customer Apple/Google identities meet app-store sign-in requirements.
+- **ASSUMPTION:** Clerk is the mobile authentication provider. The company owns and maintains its Clerk instance, Google/Apple social-connection configuration, native application settings, and mobile SSO redirect allowlist; customer Apple/Google identities meet app-store sign-in requirements.
 - **ASSUMPTION:** Customer accounts can order immediately without phone verification; operational abuse controls therefore include rate limits and audit trails rather than onboarding approval.
 - **ASSUMPTION:** The company accepts a three-week pilot scope, not a simultaneous rollout to all 230 distributors.
 
@@ -79,4 +80,5 @@ Ship a production pilot in three weeks for one distributor and one market, provi
 8. **Nearest-service policy:** immediate ordering by customers in unserved markets changes their assigned distributor after first order. Company operations must manage neighbour eligibility carefully to avoid territory conflict.
 9. **Scale validation:** 500,000 is potential reach, not pilot activity. Load/performance targets beyond the initial ~1,000 orders/day estimate are not yet set.
 10. **No existing company API:** the platform will need a later integration/migration decision if the company's internal system becomes authoritative.
+11. **Mobile SSO configuration:** a missing or mismatched Clerk mobile redirect allowlist entry prevents Google/Apple authentication from creating a session. The configured callback must remain `mobile:///oauth-callback` for the current Expo scheme.
 

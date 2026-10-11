@@ -1,4 +1,6 @@
+import { useAuth } from "@clerk/expo";
 import { useRouter } from "expo-router";
+import { useEffect } from "react";
 import "../../global.css";
 import { StatusBar } from "expo-status-bar";
 import { Image, Pressable, Text, View } from "react-native";
@@ -6,6 +8,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function App() {
   const router = useRouter();
+  const { isLoaded, isSignedIn } = useAuth();
+
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      router.replace("/onboarding");
+    }
+  }, [isLoaded, isSignedIn, router]);
   return (
     <View className="flex-1 overflow-hidden bg-black">
       <Image
@@ -34,7 +43,7 @@ export default function App() {
           </Text>
           <View className="gap-[15px]">
             <Pressable
-              onPress={() => router.push("/(auth)")}
+              onPress={() => router.push("/(auth)?mode=signUp")}
               className="h-[61px] items-center justify-center rounded-full bg-white active:opacity-80"
             >
               <Text className="text-xl font-bold tracking-[-0.45px] text-[#111114]">
@@ -42,7 +51,7 @@ export default function App() {
               </Text>
             </Pressable>
             <Pressable
-              onPress={() => router.push("/(auth)")}
+              onPress={() => router.push("/(auth)?mode=signIn")}
               className="h-[61px] items-center justify-center rounded-full border border-white/10 bg-[#0E0E13]/70 active:opacity-80"
             >
               <Text className="text-xl font-bold tracking-[-0.45px] text-white">

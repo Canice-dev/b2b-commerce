@@ -95,6 +95,7 @@ export const users = pgTable(
   "users",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    clerkUserId: text("clerk_user_id").unique(),
     email: text("email"),
     name: text("display_name"),
     emailVerified: boolean("email_verified").default(false).notNull(),
