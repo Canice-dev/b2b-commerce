@@ -10,13 +10,16 @@ import { ActivityIndicator, View } from "react-native";
 export default function OAuthCallback() {
   const { isLoaded, isSignedIn } = useAuth();
 
-  if (isLoaded && isSignedIn) {
-    return <Redirect href="/onboarding" />;
+  if (!isLoaded) {
+    return (
+      <View className="flex-1 items-center justify-center bg-white">
+        <ActivityIndicator color="#182a3b" />
+      </View>
+    );
   }
 
-  return (
-    <View className="flex-1 items-center justify-center bg-white">
-      <ActivityIndicator color="#182a3b" />
-    </View>
-  );
+  // The SSO hook resumes after this deep link and activates the session. If a
+  // callback is opened without a completed session, return to sign-in instead
+  // of leaving the user on a permanent loader.
+  return <Redirect href={isSignedIn ? "/onboarding" : "/(auth)"} />;
 }

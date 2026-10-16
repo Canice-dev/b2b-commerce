@@ -16,10 +16,9 @@ const useSocialAuth = () => {
     try {
       const { createdSessionId, setActive } = await startSSOFlow({
         strategy,
-        // Use three slashes so `oauth-callback` is interpreted as a path, not
-        // as the host portion of a custom-scheme URL by Expo Router.
+        // This uses the scheme declared in app.json. Keeping the scheme in one
+        // place ensures the native app can receive the browser callback.
         redirectUrl: AuthSession.makeRedirectUri({
-          scheme: "flickmartapp",
           path: "/oauth-callback",
           isTripleSlashed: true,
         }),
