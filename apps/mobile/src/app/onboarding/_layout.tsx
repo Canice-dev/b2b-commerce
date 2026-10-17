@@ -1,5 +1,6 @@
 import { useAuth } from "@clerk/expo";
 import { Redirect, Stack } from "expo-router";
+import { OnboardingProvider } from "@/components/onboarding/onboarding-context";
 
 export default function OnboardingLayout() {
   const { isSignedIn, isLoaded } = useAuth();
@@ -10,5 +11,9 @@ export default function OnboardingLayout() {
   if (!isSignedIn) {
     return <Redirect href={"/(auth)"} />;
   }
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <OnboardingProvider>
+      <Stack screenOptions={{ headerShown: false }} />
+    </OnboardingProvider>
+  );
 }

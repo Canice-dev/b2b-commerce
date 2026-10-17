@@ -175,9 +175,7 @@ export const verifications = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (table) => [
-    index("verifications_identifier_index").on(table.identifier),
-  ],
+  (table) => [index("verifications_identifier_index").on(table.identifier)],
 );
 
 export const userRoles = pgTable(
@@ -438,6 +436,18 @@ export const customerProfiles = pgTable(
   ],
 );
 
+export const customerLegalAcceptances = pgTable("customer_legal_acceptances", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  termsVersion: text("terms_version").notNull(),
+  privacyPolicyVersion: text("privacy_policy_version").notNull(),
+  acceptedAt: timestamp("accepted_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: updatedAt(),
+});
+
 export const products = pgTable(
   "products",
   {
@@ -646,9 +656,12 @@ export const distributorInventoryMovements = pgTable(
     productId: uuid("product_id")
       .notNull()
       .references(() => products.id, { onDelete: "restrict" }),
-    restockOrderId: uuid("restock_order_id").references(() => restockOrders.id, {
-      onDelete: "restrict",
-    }),
+    restockOrderId: uuid("restock_order_id").references(
+      () => restockOrders.id,
+      {
+        onDelete: "restrict",
+      },
+    ),
     quantityDelta: integer("quantity_delta").notNull(),
     reason: distributorInventoryMovementReason("reason").notNull(),
     createdByUserId: uuid("created_by_user_id").references(() => users.id, {
@@ -683,8 +696,14 @@ export const restockOrderItems = pgTable(
     createdAt: createdAt(),
   },
   (table) => [
-    check("restock_order_items_requested_positive", sql`${table.requestedQuantity} > 0`),
-    check("restock_order_items_approved_nonnegative", sql`${table.approvedQuantity} is null or ${table.approvedQuantity} >= 0`),
+    check(
+      "restock_order_items_requested_positive",
+      sql`${table.requestedQuantity} > 0`,
+    ),
+    check(
+      "restock_order_items_approved_nonnegative",
+      sql`${table.approvedQuantity} is null or ${table.approvedQuantity} >= 0`,
+    ),
     uniqueIndex("restock_order_items_order_product_unique").on(
       table.restockOrderId,
       table.productId,
