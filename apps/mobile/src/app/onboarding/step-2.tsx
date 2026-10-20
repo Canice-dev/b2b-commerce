@@ -1,6 +1,6 @@
 import "../../../global.css";
 import { StatusBar } from "expo-status-bar";
-import { router } from "expo-router";
+import { Redirect, router } from "expo-router";
 import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -63,31 +63,7 @@ export default function MarketLocationScreen() {
     if (error) Alert.alert("Couldn’t complete setup", error);
   }
 
-  if (isComplete)
-    return (
-      <View
-        className="flex-1 items-center justify-center px-6"
-        style={{ backgroundColor: colors.background }}
-      >
-        <StatusBar style={isDark ? "light" : "dark"} />
-        <View className="h-16 w-16 items-center justify-center rounded-full bg-[#07853C]">
-          <Text className="text-3xl font-bold text-white">✓</Text>
-        </View>
-        <Text
-          className="mt-6 text-center text-3xl font-extrabold"
-          style={{ color: colors.text }}
-        >
-          You&apos;re all set
-        </Text>
-        <Text
-          className="mt-3 text-center text-base leading-6"
-          style={{ color: colors.muted }}
-        >
-          Your account is ready. Your assigned catalogue will be available
-          shortly.
-        </Text>
-      </View>
-    );
+  if (isComplete) return <Redirect href="/(tabs)/index" />;
 
   return (
     <View className="flex-1" style={{ backgroundColor: colors.background }}>

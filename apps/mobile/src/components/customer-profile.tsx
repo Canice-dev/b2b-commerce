@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -58,10 +59,16 @@ export function CustomerProfileProvider({
     }
   }, [getToken, isSignedIn]);
 
+  const refreshRef = useRef(refresh);
+
+  useEffect(() => {
+    refreshRef.current = refresh;
+  }, [refresh]);
+
   useEffect(() => {
     if (!isLoaded) return;
-    void refresh();
-  }, [isLoaded, refresh]);
+    void refreshRef.current();
+  }, [isLoaded, isSignedIn]);
 
   const value = useMemo(
     () => ({ isLoading, isOnboardingComplete, refresh }),
