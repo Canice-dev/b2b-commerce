@@ -230,3 +230,43 @@ export async function POST(request: Request) {
     return Response.json({ error: message }, { status: 400 });
   }
 }
+
+export async function GET(request: Request) {
+  const token = getBearerToken(request);
+  if (!token) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  try {
+    const claims = await verifyToken(token, { secretKey: getClerkSecretKey() });
+    if (!claims?.sub)
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+    const [user] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.clerkUserId, claims.sub))
+      .limit(1);
+
+    if (!user) return Response.json({ completed: false });
+
+    const [profile, legalAcceptance] = await Promise.all([
+      db
+        .select({ userId: customerProfiles.userId })
+        .from(customerProfiles)
+        .where(eq(customerProfiles.userId, user.id))
+        .limit(1),
+      db
+        .select({ userId: customerLegalAcceptances.userId })
+        .from(customerLegalAcceptances)
+        .where(eq(customerLegalAcceptances.userId, user.id))
+        .limit(1),
+    ]);
+
+    return Response.json({ completed: Boolean(profile && legalAcceptance) });
+  } catch (error) {
+    console.error("Unable to load mobile onboarding status.", error);
+    return Response.json(
+      { error: "Unable to load onboarding status." },
+      { status: 500 },
+    );
+  }
+}

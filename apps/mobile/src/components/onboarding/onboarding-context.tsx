@@ -1,5 +1,8 @@
 import { useAuth } from "@clerk/expo";
+import { router } from "expo-router";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+
+import { useCustomerProfile } from "@/components/customer-profile";
 
 export type BusinessType = "retailer" | "wholesaler";
 export type Market = {
@@ -39,6 +42,7 @@ export function OnboardingProvider({
   children: React.ReactNode;
 }) {
   const { getToken } = useAuth();
+  const { refresh } = useCustomerProfile();
   const [businessName, setBusinessName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
@@ -100,6 +104,8 @@ export function OnboardingProvider({
       const body = (await response.json()) as { error?: string };
       if (!response.ok) return body.error || "Unable to save your details.";
       setIsComplete(true);
+      await refresh();
+      router.replace("/(tabs)/index");
       return null;
     } catch {
       return "Unable to save your details. Please try again.";
@@ -141,6 +147,7 @@ export function OnboardingProvider({
       markets,
       phone,
       selectedMarket,
+      refresh,
     ],
   );
 

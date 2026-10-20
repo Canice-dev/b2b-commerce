@@ -1,7 +1,8 @@
 import { ClerkProvider } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
-import { Stack } from "expo-router";
 
+import { AppRouteGate } from "@/components/app-route-gate";
+import { CustomerProfileProvider } from "@/components/customer-profile";
 import { UserSync } from "@/components/user-sync";
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -16,7 +17,9 @@ export default function RootLayout() {
   return (
     <ClerkProvider publishableKey={publishableKey!} tokenCache={tokenCache}>
       <UserSync />
-      <Stack screenOptions={{ headerShown: false }} />
+      <CustomerProfileProvider>
+        <AppRouteGate />
+      </CustomerProfileProvider>
     </ClerkProvider>
   );
 }
