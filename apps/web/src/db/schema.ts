@@ -458,6 +458,8 @@ export const products = pgTable(
     unitPriceKobo: integer("unit_price_kobo").notNull(),
     availableQuantity: integer("available_quantity").default(0).notNull(),
     imageStorageKey: text("image_storage_key"),
+    imageUrl: text("image_url"),
+    imagePublicId: text("image_public_id"),
     isActive: boolean("is_active").default(true).notNull(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

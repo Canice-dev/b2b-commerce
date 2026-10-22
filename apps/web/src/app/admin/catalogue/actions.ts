@@ -52,12 +52,27 @@ function productDetails(formData: FormData) {
       ? variantValue.trim()
       : null;
   const unitPriceKobo = nairaToKobo(formData, "unitPriceNaira");
+  const imageUrlValue = formData.get("imageUrl");
+  const imagePublicIdValue = formData.get("imagePublicId");
+  const imageUrl = typeof imageUrlValue === "string" && imageUrlValue ? imageUrlValue : null;
+  const imagePublicId = typeof imagePublicIdValue === "string" && imagePublicIdValue ? imagePublicIdValue : null;
+
+  if (Boolean(imageUrl) !== Boolean(imagePublicId)) {
+    throw new Error("The product image upload is incomplete.");
+  }
+  if (imageUrl) {
+    let parsedUrl: URL;
+    try { parsedUrl = new URL(imageUrl); } catch { throw new Error("Invalid product image."); }
+    if (parsedUrl.protocol !== "https:" || !/^res\.cloudinary\.com$/.test(parsedUrl.hostname) || imageUrl.length > 2048 || !/^product-images\/[0-9a-f-]{36}$/.test(imagePublicId ?? "")) {
+      throw new Error("Invalid product image.");
+    }
+  }
 
   if (name.length > 160 || unit.length > 60 || (variant?.length ?? 0) > 120) {
     throw new Error("Product details are too long.");
   }
 
-  return { name, variant, unit, unitPriceKobo };
+  return { name, variant, unit, unitPriceKobo, imageUrl, imagePublicId };
 }
 
 async function requireCompanyAdmin() {

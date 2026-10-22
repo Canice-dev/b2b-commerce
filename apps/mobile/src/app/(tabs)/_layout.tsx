@@ -48,8 +48,8 @@ function AndroidTabs() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#18324A",
-        tabBarInactiveTintColor: "#94A3B8",
+        tabBarActiveTintColor: "#292825",
+        tabBarInactiveTintColor: "#918D86",
         tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
         tabBarStyle: {
           borderTopWidth: 1,

@@ -17,6 +17,7 @@ import {
   createProduct,
   updateProduct,
 } from "./actions";
+import { ProductImageField } from "./product-image-field";
 
 export type CatalogueProduct = {
   id: string;
@@ -26,6 +27,8 @@ export type CatalogueProduct = {
   priceKobo: number;
   quantity: number;
   isActive: boolean;
+  imageUrl: string | null;
+  imagePublicId: string | null;
 };
 
 export function AddProductDialog() {
@@ -221,6 +224,7 @@ function ProductForm({
         step="0.01"
         type="number"
       />
+      <ProductImageField initialUrl={product?.imageUrl} initialPublicId={product?.imagePublicId} />
       {product ? (
         <label className="flex h-9 items-center gap-2 self-end text-sm text-slate-700">
           <input

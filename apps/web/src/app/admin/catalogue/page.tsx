@@ -24,6 +24,8 @@ export default async function CataloguePage() {
       priceKobo: products.unitPriceKobo,
       quantity: products.availableQuantity,
       isActive: products.isActive,
+      imageUrl: products.imageUrl,
+      imagePublicId: products.imagePublicId,
     })
     .from(products)
     .orderBy(asc(products.name));
