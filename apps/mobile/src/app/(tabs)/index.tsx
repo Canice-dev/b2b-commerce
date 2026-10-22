@@ -4,6 +4,7 @@ import { Image } from "expo-image";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import {
+  Modal,
   Pressable,
   ScrollView,
   Text,
@@ -46,6 +47,26 @@ export default function TabsIndex() {
   const [catalogue, setCatalogue] = useState<CatalogueProduct[]>([]);
   const [isGrid, setIsGrid] = useState(false);
   const [priceAscending, setPriceAscending] = useState(true);
+  const [selectedProduct, setSelectedProduct] =
+    useState<CatalogueProduct | null>(null);
+  const [quantity, setQuantity] = useState(1);
+  const [cartCount, setCartCount] = useState(0);
+
+  const formatPrice = (priceKobo: number) =>
+    `${String.fromCharCode(8358)}${(priceKobo / 100).toLocaleString("en-NG", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  const openProduct = (product: CatalogueProduct) => {
+    setSelectedProduct(product);
+    setQuantity(1);
+  };
+
+  const addToCart = () => {
+    if (!selectedProduct) return;
+    setCartCount((count) => count + quantity);
+    setSelectedProduct(null);
+  };
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !apiUrl) return;
@@ -112,7 +133,10 @@ export default function TabsIndex() {
             <Pressable
               accessibilityLabel="Your account"
               className="ml-4 h-10 w-10 items-center justify-center rounded-full border"
-              style={{ borderColor: colors.border, backgroundColor: colors.surface }}
+              style={{
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+              }}
             >
               <Ionicons name="person-outline" size={19} color={colors.text} />
             </Pressable>
@@ -168,9 +192,6 @@ export default function TabsIndex() {
               </Pressable>
             ))}
           </ScrollView>
-
-          <View className="mt-5 h-px" style={{ backgroundColor: colors.border }} />
-
           <View className="mt-5 flex-row items-center justify-between">
             <View className="flex-row items-baseline gap-2">
               <Text
@@ -188,16 +209,31 @@ export default function TabsIndex() {
                 accessibilityLabel={`Sort by price, currently ${priceAscending ? "lowest first" : "highest first"}`}
                 onPress={() => setPriceAscending((value) => !value)}
                 className="h-8 flex-row items-center gap-1 rounded-lg border px-2"
-                style={{ borderColor: colors.border, backgroundColor: colors.surface }}
+                style={{
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                }}
               >
-                <Ionicons name="swap-vertical-outline" size={15} color={colors.text} />
-                <Text className="text-sm font-medium" style={{ color: colors.text }}>Price</Text>
+                <Ionicons
+                  name="swap-vertical-outline"
+                  size={15}
+                  color={colors.text}
+                />
+                <Text
+                  className="text-sm font-medium"
+                  style={{ color: colors.text }}
+                >
+                  Price
+                </Text>
               </Pressable>
               <Pressable
                 accessibilityLabel={isGrid ? "Show list" : "Show grid"}
                 onPress={() => setIsGrid((value) => !value)}
                 className="h-8 w-8 items-center justify-center rounded-lg border"
-                style={{ borderColor: colors.border, backgroundColor: colors.surface }}
+                style={{
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                }}
               >
                 <Ionicons
                   name={isGrid ? "list-outline" : "grid-outline"}
@@ -209,11 +245,21 @@ export default function TabsIndex() {
           </View>
 
           {filteredCatalogue.length ? (
-            <View className={isGrid ? "mt-4 flex-row flex-wrap justify-between gap-y-3" : "mt-4 gap-4"}>
+            <View
+              className={
+                isGrid
+                  ? "mt-4 flex-row flex-wrap justify-between gap-y-3"
+                  : "mt-4 gap-4"
+              }
+            >
               {filteredCatalogue.map((product) => (
                 <View
                   key={product.id}
-                  className={isGrid ? "w-[48%] overflow-hidden rounded-2xl border" : "overflow-hidden rounded-2xl border"}
+                  className={
+                    isGrid
+                      ? "w-[48%] overflow-hidden rounded-2xl border"
+                      : "overflow-hidden rounded-2xl border"
+                  }
                   style={{
                     borderColor: colors.border,
                     backgroundColor: colors.surface,
@@ -241,40 +287,50 @@ export default function TabsIndex() {
                       />
                     </View>
                   )}
-                  <View className="flex-row items-center justify-between px-3.5 py-3">
-                    <View className="mr-3 flex-1">
+                  <View className="px-3.5 pb-3 pt-2.5">
+                    <Text
+                      numberOfLines={1}
+                      className="text-[16px] font-medium"
+                      style={{ color: colors.text }}
+                    >
+                      {`1 ${["carton", "ctn"].includes(product.unit.toLowerCase()) ? "ctn" : product.unit} ${product.name}${product.variant ? ` ${product.variant}` : ""}`}
+                    </Text>
+                    <View className="mt-2 flex-row items-center justify-between">
                       <Text
                         numberOfLines={1}
-                        className="text-sm font-bold"
+                        className="mr-2 flex-1 text-[20px] font-extrabold"
                         style={{ color: colors.text }}
                       >
-                        {product.name}
+                        {formatPrice(product.unitPriceKobo)}
                       </Text>
-                      <Text
-                        numberOfLines={1}
-                        className="mt-1 text-sm"
-                        style={{ color: colors.muted }}
+                      <Pressable
+                        accessibilityLabel={`Add ${product.name} to cart`}
+                        onPress={() => openProduct(product)}
+                        className="h-11 w-14 items-center justify-center rounded-full border-2"
+                        style={{
+                          borderColor: "#111111",
+                          backgroundColor: "#FFFFFF",
+                        }}
                       >
-                        {product.variant ?? `Per ${product.unit}`}
-                      </Text>
-                    </View>
-                    <View className="items-end">
-                      <Text
-                        className="text-sm font-bold"
-                        style={{ color: colors.text }}
-                      >
-                        ₦
-                        {(product.unitPriceKobo / 100).toLocaleString("en-NG", {
-                          minimumFractionDigits: 2,
-                        })}
-                      </Text>
+                        <Ionicons
+                          name="cart-outline"
+                          size={24}
+                          color="#111111"
+                        />
+                      </Pressable>
                     </View>
                   </View>
                 </View>
               ))}
             </View>
           ) : (
-            <View className="mt-4 items-center rounded-2xl border px-5 py-10" style={{ borderColor: colors.border, backgroundColor: colors.surface }}>
+            <View
+              className="mt-4 items-center rounded-2xl border px-5 py-10"
+              style={{
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+              }}
+            >
               <Ionicons name="search-outline" size={24} color={colors.muted} />
               <Text className="mt-2 text-sm" style={{ color: colors.muted }}>
                 {catalogue.length && query
@@ -285,6 +341,209 @@ export default function TabsIndex() {
           )}
         </ScrollView>
       </SafeAreaView>
+      {cartCount > 0 && (
+        <View
+          accessibilityLabel={`Cart contains ${cartCount} items`}
+          className="absolute bottom-5 right-5 h-14 w-14 items-center justify-center rounded-full"
+          style={{ backgroundColor: colors.accent, elevation: 5 }}
+        >
+          <Ionicons name="cart" size={23} color="#fff" />
+          <View className="absolute -right-1 -top-1 h-5 min-w-5 items-center justify-center rounded-full bg-orange-500 px-1">
+            <Text className="text-[10px] font-bold text-white">
+              {cartCount}
+            </Text>
+          </View>
+        </View>
+      )}
+      <Modal
+        visible={selectedProduct !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSelectedProduct(null)}
+      >
+        <View
+          className="flex-1 justify-end"
+          style={{ backgroundColor: "rgba(0,0,0,0.52)" }}
+        >
+          <Pressable
+            onPress={() => setSelectedProduct(null)}
+            className="flex-1"
+            accessibilityLabel="Close product details"
+          />
+          {selectedProduct && (
+            <View
+              className="max-h-[88%] overflow-hidden rounded-t-[28px]"
+              style={{ backgroundColor: colors.surface }}
+            >
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerClassName="px-5 pb-5 pt-4"
+              >
+                <View className="flex-row items-start">
+                  {selectedProduct.imageUrl ? (
+                    <Image
+                      source={{ uri: selectedProduct.imageUrl }}
+                      contentFit="cover"
+                      style={{ height: 76, width: 76, borderRadius: 12 }}
+                    />
+                  ) : (
+                    <View
+                      className="h-[76px] w-[76px] items-center justify-center rounded-xl"
+                      style={{ backgroundColor: colors.surfaceMuted }}
+                    >
+                      <Ionicons
+                        name="image-outline"
+                        size={24}
+                        color={colors.muted}
+                      />
+                    </View>
+                  )}
+                  <View className="ml-4 flex-1">
+                    <Text
+                      numberOfLines={2}
+                      className="text-sm font-semibold"
+                      style={{ color: colors.muted }}
+                    >
+                      {selectedProduct.name}
+                    </Text>
+                    <Text
+                      className="mt-1 text-2xl font-extrabold"
+                      style={{ color: colors.text }}
+                    >
+                      ₦
+                      {(selectedProduct.unitPriceKobo / 100).toLocaleString(
+                        "en-NG",
+                        { minimumFractionDigits: 2 },
+                      )}
+                    </Text>
+                    <Text
+                      className="mt-1 text-sm"
+                      style={{ color: colors.muted }}
+                    >
+                      Per {selectedProduct.unit}
+                    </Text>
+                  </View>
+                  <Pressable
+                    accessibilityLabel="Close product details"
+                    onPress={() => setSelectedProduct(null)}
+                    className="h-9 w-9 items-center justify-center rounded-full"
+                    style={{ backgroundColor: colors.surfaceMuted }}
+                  >
+                    <Ionicons name="close" size={21} color={colors.text} />
+                  </Pressable>
+                </View>
+                <Text
+                  className="mb-3 mt-7 text-xl font-bold"
+                  style={{ color: colors.text }}
+                >
+                  Product details
+                </Text>
+                <View
+                  className="rounded-2xl border p-4"
+                  style={{ borderColor: colors.border }}
+                >
+                  <Text
+                    className="text-base font-bold"
+                    style={{ color: colors.text }}
+                  >
+                    {selectedProduct.name}
+                  </Text>
+                  <Text
+                    className="mt-1 text-sm"
+                    style={{ color: colors.muted }}
+                  >
+                    {selectedProduct.variant ??
+                      `Sold per ${selectedProduct.unit}`}
+                  </Text>
+                  <Text
+                    className="mt-3 text-sm leading-5"
+                    style={{ color: colors.muted }}
+                  >
+                    Quality wholesale supply, ready for your next order.
+                  </Text>
+                </View>
+                <Text
+                  className="mb-3 mt-6 text-xl font-bold"
+                  style={{ color: colors.text }}
+                >
+                  Service & benefits
+                </Text>
+                <View
+                  className="self-start rounded-full border px-4 py-2"
+                  style={{ borderColor: colors.accent }}
+                >
+                  <Text
+                    className="text-sm font-semibold"
+                    style={{ color: colors.accent }}
+                  >
+                    Reliable delivery
+                  </Text>
+                </View>
+                <View className="mt-6 flex-row items-center justify-between">
+                  <Text
+                    className="text-lg font-bold"
+                    style={{ color: colors.text }}
+                  >
+                    Quantity
+                  </Text>
+                  <View
+                    className="h-11 flex-row items-center overflow-hidden rounded-xl border"
+                    style={{ borderColor: colors.border }}
+                  >
+                    <Pressable
+                      accessibilityLabel="Decrease quantity"
+                      disabled={quantity <= 1}
+                      onPress={() =>
+                        setQuantity((value) => Math.max(1, value - 1))
+                      }
+                      className="h-11 w-11 items-center justify-center"
+                      style={{ backgroundColor: colors.surfaceMuted }}
+                    >
+                      <Ionicons
+                        name="remove"
+                        size={20}
+                        color={quantity <= 1 ? colors.muted : colors.text}
+                      />
+                    </Pressable>
+                    <Text
+                      className="w-12 text-center text-base font-bold"
+                      style={{ color: colors.text }}
+                    >
+                      {quantity}
+                    </Text>
+                    <Pressable
+                      accessibilityLabel="Increase quantity"
+                      onPress={() => setQuantity((value) => value + 1)}
+                      className="h-11 w-11 items-center justify-center"
+                      style={{ backgroundColor: colors.surfaceMuted }}
+                    >
+                      <Ionicons name="add" size={20} color={colors.text} />
+                    </Pressable>
+                  </View>
+                </View>
+              </ScrollView>
+              <View
+                className="border-t px-5 pb-7 pt-4"
+                style={{ borderColor: colors.border }}
+              >
+                <Pressable
+                  onPress={addToCart}
+                  className="h-14 flex-row items-center justify-center rounded-full"
+                  style={{ backgroundColor: "#F57C00" }}
+                >
+                  <Text className="text-base font-bold text-white">
+                    Add to cart · ₦
+                    {(
+                      (selectedProduct.unitPriceKobo * quantity) /
+                      100
+                    ).toLocaleString("en-NG", { minimumFractionDigits: 2 })}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
