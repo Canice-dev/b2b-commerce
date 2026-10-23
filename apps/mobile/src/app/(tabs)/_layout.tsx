@@ -4,16 +4,18 @@ import { SymbolView } from "expo-symbols";
 import { Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { CartProvider, useCart } from "@/components/cart-context";
 
 export default function TabsLayout() {
-  if (Platform.OS === "ios") {
-    return <IosTabs />;
-  }
-
-  return <AndroidTabs />;
+  return (
+    <CartProvider>
+      {Platform.OS === "ios" ? <IosTabs /> : <AndroidTabs />}
+    </CartProvider>
+  );
 }
 
 function IosTabs() {
+  const { itemCount } = useCart();
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
@@ -26,11 +28,16 @@ function IosTabs() {
         <NativeTabs.Trigger.Icon sf="magnifyingglass" />
         <NativeTabs.Trigger.Label>Search</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="orders">
+      <NativeTabs.Trigger name="cart">
         <NativeTabs.Trigger.Icon
-          sf={{ default: "bag", selected: "bag.fill" }}
+          sf={{ default: "cart", selected: "cart.fill" }}
         />
-        <NativeTabs.Trigger.Label>Orders</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>Cart</NativeTabs.Trigger.Label>
+        {itemCount > 0 && (
+          <NativeTabs.Trigger.Badge>
+            {itemCount > 99 ? "99+" : String(itemCount)}
+          </NativeTabs.Trigger.Badge>
+        )}
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="account">
         <NativeTabs.Trigger.Icon
@@ -44,6 +51,7 @@ function IosTabs() {
 
 function AndroidTabs() {
   const { bottom } = useSafeAreaInsets();
+  const { itemCount } = useCart();
   return (
     <Tabs
       screenOptions={{
@@ -98,15 +106,17 @@ function AndroidTabs() {
         }}
       />
       <Tabs.Screen
-        name="orders"
+        name="cart"
         options={{
-          title: "Orders",
+          title: "Cart",
+          tabBarBadge: itemCount > 0 ? itemCount : undefined,
+          tabBarBadgeStyle: { backgroundColor: "#F57C00" },
           tabBarIcon: ({ color, focused }) => (
             <SymbolView
               name={{
-                ios: focused ? "bag.fill" : "bag",
-                android: "shopping_bag",
-                web: "shopping_bag",
+                ios: focused ? "cart.fill" : "cart",
+                android: "shopping_cart",
+                web: "shopping_cart",
               }}
               size={24}
               tintColor={color}

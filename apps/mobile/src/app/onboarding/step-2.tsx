@@ -63,7 +63,7 @@ export default function MarketLocationScreen() {
     if (error) Alert.alert("Couldn’t complete setup", error);
   }
 
-  if (isComplete) return <Redirect href="/(tabs)/index" />;
+  if (isComplete) return <Redirect href="/(tabs)" />;
 
   return (
     <View className="flex-1" style={{ backgroundColor: colors.background }}>

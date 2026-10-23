@@ -12,15 +12,9 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useCart, type CartProduct } from "@/components/cart-context";
 
-type CatalogueProduct = {
-  id: string;
-  name: string;
-  variant: string | null;
-  unit: string;
-  unitPriceKobo: number;
-  imageUrl: string | null;
-};
+type CatalogueProduct = CartProduct;
 
 const apiUrl = process.env.EXPO_PUBLIC_WEB_API_URL;
 const colors = {
@@ -43,6 +37,7 @@ const categories = [
 
 export default function TabsIndex() {
   const { getToken, isLoaded, isSignedIn } = useAuth();
+  const { addItem, isReady: isCartReady } = useCart();
   const [query, setQuery] = useState("");
   const [catalogue, setCatalogue] = useState<CatalogueProduct[]>([]);
   const [isGrid, setIsGrid] = useState(false);
@@ -50,7 +45,6 @@ export default function TabsIndex() {
   const [selectedProduct, setSelectedProduct] =
     useState<CatalogueProduct | null>(null);
   const [quantity, setQuantity] = useState(1);
-  const [cartCount, setCartCount] = useState(0);
 
   const formatPrice = (priceKobo: number) =>
     `${String.fromCharCode(8358)}${(priceKobo / 100).toLocaleString("en-NG", {
@@ -63,8 +57,8 @@ export default function TabsIndex() {
   };
 
   const addToCart = () => {
-    if (!selectedProduct) return;
-    setCartCount((count) => count + quantity);
+    if (!selectedProduct || !isCartReady) return;
+    addItem(selectedProduct, quantity);
     setSelectedProduct(null);
   };
 
@@ -341,20 +335,6 @@ export default function TabsIndex() {
           )}
         </ScrollView>
       </SafeAreaView>
-      {cartCount > 0 && (
-        <View
-          accessibilityLabel={`Cart contains ${cartCount} items`}
-          className="absolute bottom-5 right-5 h-14 w-14 items-center justify-center rounded-full"
-          style={{ backgroundColor: colors.accent, elevation: 5 }}
-        >
-          <Ionicons name="cart" size={23} color="#fff" />
-          <View className="absolute -right-1 -top-1 h-5 min-w-5 items-center justify-center rounded-full bg-orange-500 px-1">
-            <Text className="text-[10px] font-bold text-white">
-              {cartCount}
-            </Text>
-          </View>
-        </View>
-      )}
       <Modal
         visible={selectedProduct !== null}
         transparent
@@ -410,11 +390,7 @@ export default function TabsIndex() {
                       className="mt-1 text-2xl font-extrabold"
                       style={{ color: colors.text }}
                     >
-                      ₦
-                      {(selectedProduct.unitPriceKobo / 100).toLocaleString(
-                        "en-NG",
-                        { minimumFractionDigits: 2 },
-                      )}
+                      {formatPrice(selectedProduct.unitPriceKobo)}
                     </Text>
                     <Text
                       className="mt-1 text-sm"
@@ -527,16 +503,17 @@ export default function TabsIndex() {
                 style={{ borderColor: colors.border }}
               >
                 <Pressable
+                  disabled={!isCartReady}
                   onPress={addToCart}
                   className="h-14 flex-row items-center justify-center rounded-full"
-                  style={{ backgroundColor: "#F57C00" }}
+                  style={{
+                    backgroundColor: isCartReady ? "#F57C00" : colors.muted,
+                  }}
                 >
                   <Text className="text-base font-bold text-white">
-                    Add to cart · ₦
-                    {(
-                      (selectedProduct.unitPriceKobo * quantity) /
-                      100
-                    ).toLocaleString("en-NG", { minimumFractionDigits: 2 })}
+                    {isCartReady
+                      ? `Add to cart · ${formatPrice(selectedProduct.unitPriceKobo * quantity)}`
+                      : "Loading cart…"}
                   </Text>
                 </Pressable>
               </View>

@@ -105,7 +105,7 @@ export function OnboardingProvider({
       if (!response.ok) return body.error || "Unable to save your details.";
       setIsComplete(true);
       await refresh();
-      router.replace("/(tabs)/index");
+      router.replace("/(tabs)");
       return null;
     } catch {
       return "Unable to save your details. Please try again.";
